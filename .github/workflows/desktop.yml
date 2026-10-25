@@ -31,6 +31,7 @@ jobs:
           python test_layout.py
           python test_serial_link.py
           python test_windows_serial.py
+          python test_posix_serial.py
           python test_fpctl.py
           python test_bridge_e2e.py
           python test_scripts.py
