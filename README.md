@@ -4,14 +4,18 @@ A FIDO2 / WebAuthn security key on an **ESP32-C6** that only works after a **fin
 It is a port of [pico-fido2](https://github.com/polhenarejos/pico-fido2) (see `NOTICE.md` and `CHANGES.md`).
 
 ```
-Browser / libfido2  --hidraw--  serial bridge (Linux PC)  --USB serial--  ESP32-C6 token  --UART--  fingerprint sensor
-                                virtual FIDO HID (uhid)                   keys + signing           matches fingers itself
+Browser / libfido2  --HID--  serial bridge (PC)        --USB serial--  ESP32-C6 token  --UART--  fingerprint sensor
+                              virtual FIDO HID device                  keys + signing           matches fingers itself
+                              (Linux uhid, macOS helper,
+                               Windows driver prototype)
 ```
 
 The ESP32-C6 has no USB device controller, so it cannot be a USB HID key by itself. The firmware talks CTAPHID over
-the C6's native USB port (it appears as `/dev/ttyACM0`) and a small Python program on the PC (`desktop/`)
-turns that into a virtual USB HID FIDO device. **The bridge must run on every PC where you use the token.** Linux works and was tested with the hardware; macOS and
-Windows support is in progress, see [Operating systems](#operating-systems). This manual is written for Linux.
+the C6's native USB port (a serial port: `/dev/ttyACM0` on Linux, `/dev/cu.usbmodem…` on macOS, `COMn` on Windows) and
+a small Python program on the PC (`desktop/`) turns that into a virtual USB HID FIDO device. **The bridge must run on
+every PC where you use the token.** Linux works and was tested with the hardware; the macOS and Windows code is written
+and tested in CI without hardware, see [Operating systems](#operating-systems). This manual is written for Linux; macOS
+and Windows have their own guides.
 
 ## What is stored where
 
@@ -49,6 +53,15 @@ browser (the firmware refuses on a failed match; check it yourself), resident ke
 | Manual | this README | [desktop/mac/README.md](desktop/mac/README.md) | [desktop/windows/README.md](desktop/windows/README.md) |
 
 "Host tests only" means the code runs in CI on that OS against a fake token, not against the real hardware.
+
+What was tested where, with the real token:
+
+| OS | Browser / tool | Result |
+|---|---|---|
+| Ubuntu | Brave (deb), `fido2-token`, `fido2-cred`, `fido2-assert` | registration and login with PIN and fingerprint work |
+| Ubuntu | Firefox, Chrome, snap/flatpak browsers | not tested |
+| macOS | any | not tested (the virtual device needs Apple's HID entitlement) |
+| Windows | any | not tested (the virtual device driver was never installed) |
 
 **Not a hardened token.** Flash encryption and secure boot are off. Anyone holding the board can read its flash, and the
 fingerprint is a gate (user presence), not part of the key material. See [Security notes](#security-notes).
@@ -200,7 +213,7 @@ reload it after clicking register.
 | Symptom | Likely cause |
 |---|---|
 | `fpctl status`: "sensor does not answer" | TX/RX swapped, 3.3 V missing, EN/RST not on GPIO18 or wrong polarity |
-| `fpctl`: "no answer from the token" / "no token found" | The bridge is still running, or the firmware was built with the gate off |
+| `fpctl`: "no answer from the token" / "no token found" | The firmware was built with the gate off, or another program (serial monitor) has the port |
 | `sudo: ./ctaphid_serial_bridge.py: command not found` | You are not in `desktop/common` |
 | Port busy, `/dev/ttyACM0` keeps disappearing | `sudo systemctl stop ModemManager` |
 | Permission denied on `/dev/ttyUSB0` | You are not in the `dialout` group yet |
