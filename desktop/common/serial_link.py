@@ -221,7 +221,8 @@ class WindowsSerial(SerialLink):
 
 
 def _windows_ports():
-    """COM ports that exist now, Espressif (VID 303A) ones first."""
+    """COM ports that exist now, Espressif (VID 303A) ones first. Bluetooth serial ports are left out: opening one can
+    block for seconds while Windows tries to connect, and the bridge probes every second while the token is away."""
     import winreg
     present = []
     try:
@@ -229,9 +230,11 @@ def _windows_ports():
             i = 0
             while True:
                 try:
-                    present.append(winreg.EnumValue(k, i)[1])
+                    device, port = winreg.EnumValue(k, i)[:2]
                 except OSError:
                     break
+                if "bth" not in device.lower():          # \Device\BthModem0, ...
+                    present.append(port)
                 i += 1
     except OSError:
         return []

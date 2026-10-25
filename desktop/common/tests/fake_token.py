@@ -2,6 +2,7 @@
 
     tok = FakeToken(handler, greeting=b"boot noise")     # handler(ftype, data, send) answers one frame
     url = tok.serve_tcp()                                # "tcp://127.0.0.1:NNNN", usable as --port
+    tok.unplug()                                         # drop the TCP connection (token unplugged)
     path = tok.serve_pty()                               # "/dev/ttysNNN" or "/dev/pts/N"
     tok.inject(raw_bytes)                                # write raw bytes to the current connection
 """
@@ -46,6 +47,10 @@ class FakeToken:
     def inject(self, raw):
         self._write(raw)
 
+    def unplug(self):
+        """TCP only: drop the current connection, like pulling the cable; the next connect succeeds again."""
+        self._conn.shutdown(2)
+
     # --- TCP: one connection at a time (the probe connects and leaves, then the real user connects)
     def serve_tcp(self):
         srv = socket.socket()
@@ -65,6 +70,7 @@ class FakeToken:
                     except OSError:
                         return None
                     return data or None
+                self._conn = conn
                 try:
                     self._serve(read, conn.sendall)
                 except OSError:

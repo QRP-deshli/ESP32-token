@@ -10,7 +10,7 @@ check = Checker()
 # ---- Windows: COM ports from HARDWARE\DEVICEMAP\SERIALCOMM, Espressif (VID_303A) ones first --------------------------
 REG = {
     r"HARDWARE\DEVICEMAP\SERIALCOMM": {"values": [("\\Device\\Serial0", "COM1"), ("\\Device\\USBSER000", "COM12"),
-                                        ("\\Device\\USBSER001", "COM3")]},
+                                        ("\\Device\\USBSER001", "COM3"), ("\\Device\\BthModem0", "COM4")]},
     r"SYSTEM\CurrentControlSet\Enum\USB": {"keys": ["VID_8087&PID_0026", "VID_303A&PID_1001&MI_00"]},
     r"SYSTEM\CurrentControlSet\Enum\USB\VID_8087&PID_0026": {"keys": ["5&1"]},
     r"SYSTEM\CurrentControlSet\Enum\USB\VID_303A&PID_1001&MI_00": {"keys": ["6&2&0000", "6&3&0000"]},
@@ -42,7 +42,7 @@ def QueryValueEx(k, name):
 sys.modules["winreg"] = types.SimpleNamespace(HKEY_LOCAL_MACHINE=None, OpenKey=OpenKey, EnumValue=EnumValue,
                                               EnumKey=EnumKey, QueryValueEx=QueryValueEx)
 ports = sl._windows_ports()
-check(ports == ["COM12", "COM1", "COM3"], f"windows: Espressif port first, unplugged ones skipped, numeric order: {ports}")
+check(ports == ["COM12", "COM1", "COM3"], f"windows: Espressif port first, unplugged and Bluetooth ones skipped, numeric order: {ports}")
 del sys.modules["winreg"]
 
 # ---- macOS and Linux names ----------------------------------------------------------------------------------------
