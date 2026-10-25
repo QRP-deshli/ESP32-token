@@ -26,3 +26,7 @@
 - `70-pico-fido2.rules` (udev) lets browsers open the virtual device.
 - `desktop/linux/`: `setup-token.sh` (guided fingers / keys / reset), `check-token.sh` (status), `start-bridge.sh` (daily start).
 - Host tests (no hardware needed) in `desktop/common/tests/`.
+- Desktop code split into `serial_frames.py`, `serial_link.py` (Linux/macOS termios, Windows ctypes, tcp:// for tests)
+  and `virtual_hid.py` (Linux uhid, helper-process backend); `desktop/mac/` (scripts, Swift virtual HID helper) and
+  `desktop/windows/` (PowerShell scripts, virtual HID research). macOS and Windows are not tested with the token yet.
+- CI (`.github/workflows/desktop.yml`) runs the host tests on Linux, macOS and Windows.

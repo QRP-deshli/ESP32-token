@@ -10,7 +10,8 @@ Browser / libfido2  --hidraw--  serial bridge (Linux PC)  --USB serial--  ESP32-
 
 The ESP32-C6 has no USB device controller, so it cannot be a USB HID key by itself. The firmware talks CTAPHID over
 the C6's native USB port (it appears as `/dev/ttyACM0`) and a small Python program on the PC (`desktop/`)
-turns that into a virtual USB HID FIDO device. **The bridge must run on every PC where you use the token. Only Linux is implemented; Windows and macOS are planned (see `desktop/`).**
+turns that into a virtual USB HID FIDO device. **The bridge must run on every PC where you use the token.** Linux works and was tested with the hardware; macOS and
+Windows support is in progress, see [Operating systems](#operating-systems). This manual is written for Linux.
 
 ## What is stored where
 
@@ -34,8 +35,20 @@ RX, IRQ, EN), ESP-IDF v5.5, Ubuntu, Brave:
 - registration and login on the [Token2 FIDO2 demo](https://www.token2.com/tools/fido2-demo) in Brave, with a PIN set
 
 **Not tested:** other websites, Firefox/Chrome (a browser installed as a snap or flatpak may be sandboxed from
-`/dev/hidraw*`), other fingerprint module models, other operating systems, and a stranger's finger being refused in the
+`/dev/hidraw*`), other fingerprint module models, macOS and Windows with the real token, and a stranger's finger being refused in the
 browser (the firmware refuses on a failed match; check it yourself), resident keys/passkeys beyond the demo.
+
+### Operating systems
+
+| | Linux | macOS | Windows |
+|---|---|---|---|
+| Token detection, `fpctl.py` | tested with the token | implemented, host tests only | implemented, host tests only |
+| Virtual FIDO device | `/dev/uhid`, tested | `desktop/mac/vhid` helper, needs an Apple entitlement | no backend yet (research in `desktop/windows/virtual-hid.md`) |
+| Browser registration | tested (Brave) | not tested | not possible yet |
+| Helper scripts | `desktop/linux/` | `desktop/mac/` | `desktop/windows/` (PowerShell) |
+| Manual | this README | [desktop/mac/README.md](desktop/mac/README.md) | [desktop/windows/README.md](desktop/windows/README.md) |
+
+"Host tests only" means the code runs in CI on that OS against a fake token, not against the real hardware.
 
 **Not a hardened token.** Flash encryption and secure boot are off. Anyone holding the board can read its flash, and the
 fingerprint is a gate (user presence), not part of the key material. See [Security notes](#security-notes).
@@ -48,7 +61,7 @@ fingerprint is a gate (user presence), not part of the key material. See [Securi
 
 - **ESP32-C6-DevKitC-1** (two USB-C ports: *UART* for flashing and logs, *USB* = native, used as the token link), 4 MB flash or more.
 - **Fingerprint module**, 3.3 V, UART, speaking the Waveshare *UART Fingerprint Sensor (D)* command set, plus jumper wires.
-- **Two USB-C cables** and a **Linux PC** with Python 3 and the `uhid` kernel module (Windows and macOS are not supported yet: see `desktop/`).
+- **Two USB-C cables** and a **Linux PC** with Python 3 and the `uhid` kernel module (for macOS and Windows see [Operating systems](#operating-systems)).
 - **ESP-IDF v5.5** ([install guide](https://docs.espressif.com/projects/esp-idf/en/v5.5/esp32c6/get-started/)); run `./install.sh esp32c6`.
 - Internet during the first build (the ESP-IDF component manager downloads `zorxx/neopixel`).
 - `fido2-tools` for command-line tests: `sudo apt install fido2-tools`.
@@ -228,7 +241,8 @@ Only enrolled fingers work, and the sensor decides; add or remove fingers with `
 
 ## Helper scripts
 
-Three scripts in `desktop/linux/` (Linux only, bash, they ask for your sudo password) wrap the steps above.
+Three scripts in `desktop/linux/` (bash, they ask for your sudo password) wrap the steps above. `desktop/mac/` (bash 3.2, no
+sudo) and `desktop/windows/` (PowerShell) have the same three scripts with the same menu.
 
 | Script | What it does |
 |---|---|
@@ -268,18 +282,21 @@ token on a PC, not yet on the real board.
 - `CMakeLists.txt`, `sdkconfig.defaults` (single C6 config), `src/fido2/`
 - `pico-keys-sdk/src/usb/serial/` serial framing and transport; `pico-keys-sdk/src/fingerprint/` sensor code
 - `pico-fido/src`, `pico-openpgp/src`, `pico-keys-sdk/{src,config,cmake,mlkem,tinycbor}`: upstream code the build uses
-- `desktop/`: everything that runs on the PC: `common/` (bridge, `fpctl.py`, host tests), `linux/` (scripts, udev rule), `windows/` and `mac/` (not implemented yet, see `desktop/README.md`), `issues/` (GitHub issues for the Windows/macOS work)
+- `desktop/`: everything that runs on the PC: `common/` (bridge, `fpctl.py`, host tests), `linux/` (scripts, udev rule), `mac/` (scripts, virtual HID helper), `windows/` (PowerShell scripts, virtual HID research), `issues/` (GitHub issues for the Windows/macOS work)
 - `CHANGES.md` (what differs from upstream), `NOTICE.md` (credits and licenses)
 
 ## Host tests (no hardware)
 
 ```sh
 cd desktop/common/tests
-python3 test_fpctl.py && python3 test_bridge_e2e.py
+python3 test_serial_link.py && python3 test_fpctl.py && python3 test_bridge_e2e.py && python3 test_scripts.py
 SDK=../../../pico-keys-sdk/src
 gcc -I$SDK/fingerprint test_fp_core.c $SDK/fingerprint/fp_core.c $SDK/fingerprint/fp_proto.c -o /tmp/t_fp && /tmp/t_fp
 gcc -I$SDK/usb/serial test_serial_proto.c $SDK/usb/serial/serial_proto.c -o /tmp/t_sp && /tmp/t_sp
 ```
+
+The Python tests run on Linux, macOS and Windows (a fake token on a TCP port; on Linux also a fake `/dev/uhid`).
+CI runs all of them on the three OSes: `.github/workflows/desktop.yml`.
 
 ## License
 
