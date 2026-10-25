@@ -22,3 +22,7 @@ __pycache__/
 
 # macOS virtual HID helper (built by desktop/mac/vhid/build.sh)
 /desktop/mac/vhid/pico-vhid
+
+# host C test binaries (CI builds them next to the sources)
+/desktop/common/tests/t_fp*
+/desktop/common/tests/t_sp*

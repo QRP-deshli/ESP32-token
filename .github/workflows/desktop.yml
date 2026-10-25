@@ -1,0 +1,68 @@
+# Host tests of the desktop side (no hardware) on Linux, Windows and macOS.
+name: desktop
+
+on:
+  push:
+    paths: ["desktop/**", "pico-keys-sdk/src/fingerprint/**", "pico-keys-sdk/src/usb/serial/**", ".github/workflows/desktop.yml"]
+  pull_request:
+    paths: ["desktop/**", "pico-keys-sdk/src/fingerprint/**", "pico-keys-sdk/src/usb/serial/**", ".github/workflows/desktop.yml"]
+  workflow_dispatch:
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop/common/tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Python tests
+        run: |
+          python test_serial_link.py
+          python test_fpctl.py
+          python test_bridge_e2e.py
+          python test_scripts.py
+      - name: C tests (firmware code)
+        # gcc on Linux and Windows (MinGW on the runner image), clang as cc on macOS
+        run: |
+          SDK=../../../pico-keys-sdk/src
+          CC=gcc; [ "$RUNNER_OS" = macOS ] && CC=cc
+          $CC -I$SDK/fingerprint test_fp_core.c $SDK/fingerprint/fp_core.c $SDK/fingerprint/fp_proto.c -o t_fp && ./t_fp
+          $CC -I$SDK/usb/serial test_serial_proto.c $SDK/usb/serial/serial_proto.c -o t_sp && ./t_sp
+
+  scripts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck (Linux and macOS scripts)
+        if: runner.os == 'Linux'
+        run: shellcheck -x -S error desktop/linux/*.sh desktop/mac/*.sh desktop/mac/vhid/build.sh desktop/issues/create-issues.sh
+      - name: bash 3.2 syntax (macOS scripts)
+        if: runner.os == 'macOS'
+        run: for f in desktop/mac/*.sh desktop/mac/vhid/build.sh; do /bin/bash -n "$f"; done
+      - name: build the macOS virtual HID helper
+        if: runner.os == 'macOS'
+        run: desktop/mac/vhid/build.sh
+      - name: PowerShell parse (Windows scripts)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($f in Get-ChildItem desktop/windows/*.ps1) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errors) | Out-Null
+            foreach ($e in $errors) { Write-Host "$($f.Name):$($e.Extent.StartLineNumber): $($e.Message)"; $failed = $true }
+          }
+          if ($failed) { exit 1 }
