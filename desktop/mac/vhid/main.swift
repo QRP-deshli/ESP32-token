@@ -7,6 +7,7 @@
 //   - log lines go to stderr; the helper exits when stdin is closed
 //
 //   pico-vhid --name "Pico FIDO2 (serial bridge)" --vid 0x1d50 --pid 0x619b
+//   pico-vhid --check     only check that the device can be created (exit 0) or say why not (exit 1)
 //
 // Creating the device needs the entitlement com.apple.developer.hid.virtual.device (see ../virtual-hid.md).
 
@@ -49,6 +50,7 @@ func fail(_ msg: String) -> Never {
 var name = "Pico FIDO2 (serial bridge)"
 var vid = 0x1D50
 var pid = 0x619B
+var checkOnly = false
 var argv = CommandLine.arguments.dropFirst().makeIterator()
 func number(_ s: String?) -> Int {
     guard let s = s else { fail("missing value") }
@@ -61,8 +63,9 @@ while let a = argv.next() {
     case "--name": name = argv.next() ?? name
     case "--vid": vid = number(argv.next())
     case "--pid": pid = number(argv.next())
+    case "--check": checkOnly = true
     case "-h", "--help":
-        print("usage: pico-vhid [--name NAME] [--vid 0xVVVV] [--pid 0xPPPP]  (started by ctaphid_serial_bridge.py)")
+        print("usage: pico-vhid [--name NAME] [--vid 0xVVVV] [--pid 0xPPPP] | --check  (started by ctaphid_serial_bridge.py)")
         exit(0)
     default: fail("unknown argument \(a)")
     }
@@ -88,6 +91,11 @@ guard let device = IOHIDUserDeviceCreateWithProperties(kCFAllocatorDefault, prop
         com.apple.developer.hid.virtual.device and a signature that macOS accepts for it \
         (see desktop/mac/virtual-hid.md).
         """)
+}
+
+if checkOnly {
+    log("OK: the virtual HID device can be created")
+    exit(0)                                  // the device goes away with the process
 }
 
 let stdout = FileHandle.standardOutput
