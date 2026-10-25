@@ -47,9 +47,13 @@ class FakeToken:
     def inject(self, raw):
         self._write(raw)
 
-    def unplug(self):
-        """TCP only: drop the current connection, like pulling the cable; the next connect succeeds again."""
-        self._conn.shutdown(2)
+    def unplug(self, wait=3.0):
+        """TCP only: drop the current connection, like pulling the cable; the next connect succeeds again.
+        The client's connect() returns before our accept() does, so wait until the connection is known."""
+        end = time.time() + wait
+        while getattr(self, "_conn", None) is None and time.time() < end:
+            time.sleep(0.01)
+        self._conn.shutdown(socket.SHUT_RDWR)
 
     # --- TCP: one connection at a time (the probe connects and leaves, then the real user connects)
     def serve_tcp(self):
