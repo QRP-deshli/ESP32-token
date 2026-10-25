@@ -41,6 +41,9 @@
     <Link>
       <AdditionalDependencies>$(DDK_LIB_PATH)vhfkm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <DriverSign>
+      <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="pico_vhf.c" />

@@ -77,6 +77,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64     # the 32-bit MSBuild cannot load the WDK's InfVerif.dll
       - name: build the helper (MinGW)
         shell: bash
         working-directory: desktop/windows/vhid/helper
