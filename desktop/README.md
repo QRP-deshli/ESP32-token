@@ -36,7 +36,7 @@ maintenance problem, `WindowsSerial` can be replaced by a pyserial-based `Serial
 | `common/` | the modules above, host tests in `tests/` | host tests pass on Linux, macOS and Windows (CI) |
 | `linux/` | `setup-token.sh`, `check-token.sh`, `start-bridge.sh`, `common.sh`, udev rule | **works** (tested on Ubuntu with Brave) |
 | `mac/` | the same scripts (bash 3.2), `vhid/` virtual HID helper (Swift) | implemented, **not tested with the token**; the helper needs an Apple entitlement, see `mac/README.md` |
-| `windows/` | the same scripts (PowerShell), virtual HID research | serial side implemented, **not tested with the token**; no virtual HID backend yet, see `windows/README.md` |
+| `windows/` | the same scripts (PowerShell), `vhid/` virtual HID driver + helper (prototype) | serial side implemented, **not tested with the token**; driver builds in CI, never installed, see `windows/README.md` |
 | `issues/` | GitHub issues for the Windows/macOS work, plus a script that files them | |
 | `no-bridge-options.md` | comparison of ways to drop the bridge altogether | |
 

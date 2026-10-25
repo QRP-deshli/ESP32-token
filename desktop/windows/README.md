@@ -4,9 +4,9 @@
 |---|---|
 | Serial link (COM ports, `kernel32` through `ctypes`), token detection (Espressif VID `303A` first, Bluetooth COM ports skipped) | implemented; host tests with a fake registry and a fake `kernel32` pass in CI; **not tested on Windows with the token** |
 | `fpctl.py` (status, enroll, test, delete) | implemented; **not tested on Windows with the token** |
-| Virtual FIDO device | **not available**: needs a helper, see [virtual-hid.md](virtual-hid.md) |
+| Virtual FIDO device | prototype: VHF driver + `pico-vhid.exe` in [vhid/](vhid/README.md), builds in CI, **never installed or run** |
 | Helper scripts | `setup-token.ps1`, `check-token.ps1`, `start-bridge.ps1`; **not run on Windows yet** (checked in CI by the PowerShell parser) |
-| Browser registration | **not possible yet** (no virtual device) |
+| Browser registration | **not tested** (needs the prototype driver installed and the token) |
 
 | File | Purpose |
 |---|---|
@@ -28,7 +28,8 @@ Run a script with `powershell -ExecutionPolicy Bypass -File desktop\windows\chec
    appears as "USB Serial Device (COMn)". The JTAG interface needs a driver only for debugging (the ESP-IDF installer
    offers it). To verify on the hardware: Device Manager shows `USB\VID_303A&PID_1001&MI_00`.
 4. **Enrol a fingerprint.** `setup-token.ps1`, or `cd desktop\common; py -3 fpctl.py enroll`.
-5. **Virtual device and browsers**: not possible yet, see [virtual-hid.md](virtual-hid.md).
+5. **Virtual device and browsers**: install the prototype driver as in [vhid/README.md](vhid/README.md) (administrator,
+   test-signing), then run `start-bridge.ps1` from an administrator PowerShell.
 
 ## Checking the serial side with the hardware
 
