@@ -1,6 +1,7 @@
 """
 virtual_hid.py - the virtual USB HID FIDO device that browsers and libfido2 see, one backend per operating system.
 
+    hid = open_virtual_hid(helper, log=log)  # the right backend for this OS, or HidUnavailable with the reason
     hid = UhidDevice()                     # Linux, /dev/uhid
     hid = HelperProcessHid([path])         # any OS: a small native helper program owns the device (macOS: desktop/mac/vhid)
     hid.create(name, vid, pid)
@@ -22,6 +23,7 @@ import queue
 import select
 import struct
 import subprocess
+import sys
 import threading
 
 from serial_link import LinkClosed
@@ -46,6 +48,12 @@ FIDO_REPORT_DESC = bytes([
     0xC0,                    # End Collection
 ])
 REPORT_LEN = 64
+UHID_PATH = "/dev/uhid"
+MAC_HELPER = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "mac", "vhid", "pico-vhid"))
+
+
+class HidUnavailable(Exception):
+    """No virtual HID backend can be used here; the message says why and what to do."""
 
 
 class VirtualHid:
@@ -80,7 +88,7 @@ BUS_USB = 3
 
 
 class UhidDevice(VirtualHid):
-    def __init__(self, path="/dev/uhid", fd=None, log=None):
+    def __init__(self, path=UHID_PATH, fd=None, log=None):
         super().__init__(log)
         self.fd = fd if fd is not None else os.open(path, os.O_RDWR | os.O_NONBLOCK)
 
@@ -189,3 +197,25 @@ class HelperProcessHid(VirtualHid):
                 self.proc.wait(timeout=2)
             except (OSError, subprocess.TimeoutExpired):
                 self.proc.kill()
+
+
+# ----------------------------------------------------------------------------
+def open_virtual_hid(helper=None, uhid_path=UHID_PATH, log=None):
+    """The virtual HID backend for this OS. `helper` (a program path) overrides the default on every OS."""
+    if helper:
+        return HelperProcessHid([helper], log)
+    if sys.platform.startswith("linux"):
+        try:
+            return UhidDevice(uhid_path, log=log)
+        except OSError as e:
+            raise HidUnavailable(f"cannot open {uhid_path}: {e}\n"
+                                 "Run as root, or grant access with a udev rule, e.g.\n"
+                                 '  KERNEL=="uhid", GROUP="plugdev", MODE="0660"\n'
+                                 "and `sudo modprobe uhid` if the node is missing.") from e
+    if sys.platform == "darwin":
+        if not os.access(MAC_HELPER, os.X_OK):
+            raise HidUnavailable(f"the macOS virtual HID helper is not built ({MAC_HELPER}).\n"
+                                 "Build it with desktop/mac/vhid/build.sh (see desktop/mac/README.md).")
+        return HelperProcessHid([MAC_HELPER], log)
+    raise HidUnavailable("this OS has no built-in virtual HID backend. On Windows pass --helper with a virtual HID helper\n"
+                         "(see desktop/windows/virtual-hid.md). fpctl.py works without the bridge.")

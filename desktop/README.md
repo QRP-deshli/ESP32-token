@@ -13,13 +13,23 @@ The Python code in `common/` does both. The operating-system specific parts sit 
 |---|---|---|
 | `serial_frames.py` | the frame protocol (CRC, encoder, streaming decoder); no OS-specific imports | |
 | `serial_link.py` | `SerialLink` (open, read with timeout, write, close) and port detection | `PosixSerial` (termios: Linux, macOS), `WindowsSerial` (ctypes + kernel32), `SocketLink` (`tcp://host:port`, tests) |
-| `virtual_hid.py` | `VirtualHid` (create, poll output reports, send input reports, close) | `UhidDevice` (Linux), `HelperProcessHid` (a native helper over stdin/stdout: macOS `mac/vhid`, Windows later) |
+| `virtual_hid.py` | `VirtualHid` (create, poll output reports, send input reports, close); `open_virtual_hid()` picks the backend for this OS | `UhidDevice` (Linux), `HelperProcessHid` (a native helper over stdin/stdout: macOS `mac/vhid`, Windows later) |
+| `multiplex.py` | `wait_readable()`: `select()` where every source has a file descriptor, otherwise the caller polls | |
 | `ctaphid_serial_bridge.py` | the `Bridge` that moves 64-byte reports between the two, and its command line | |
 | `fpctl.py` | fingerprint admin over the serial link | |
 
-Everything is standard library only (no pyserial): the only OS-specific code is a `ctypes` Windows backend and termios.
-A new backend is added in `serial_link.py` or `virtual_hid.py` without touching `Bridge` or `fpctl.py`.
-`--port` defaults to `$PICO_TOKEN_PORT` and `--helper` to `$PICO_VHID_HELPER`.
+A new backend is added in `serial_link.py` (`open_link`, `list_ports`) or `virtual_hid.py` (`open_virtual_hid`) without
+touching `Bridge` or `fpctl.py`; `tests/test_layout.py` fails if OS-specific imports, platform checks or `/dev` paths
+appear in the bridge, `fpctl.py` or the protocol module. `--port` defaults to `$PICO_TOKEN_PORT` and `--helper` to
+`$PICO_VHID_HELPER`.
+
+**Decision: standard library only, no pyserial.** pyserial would have saved the Windows backend (about 120 lines of
+`ctypes` around `CreateFileW`, `SetCommState`, `SetCommTimeouts`, `ReadFile`/`WriteFile`) and the port listing. Against
+it: the bridge runs as root on Linux (`sudo`), where installing a package means either a system package or `sudo pip`;
+the helper scripts would need a dependency check on every OS; and the project has been dependency-free so far. The
+cost of staying stdlib-only is that `WindowsSerial` and the registry-based port detection are our own code, covered by
+host tests (`test_serial_link.py` with a fake `winreg`) but not yet run against the token. If that code becomes a
+maintenance problem, `WindowsSerial` can be replaced by a pyserial-based `SerialLink` without touching anything else.
 
 | Folder | What is in it | Status |
 |---|---|---|
