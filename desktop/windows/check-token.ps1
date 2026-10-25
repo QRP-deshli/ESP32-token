@@ -10,8 +10,13 @@ Write-Host ''
 # --- the PC side ---
 if (-not $Python) { Bad "Python 3 is not installed (https://www.python.org/downloads/windows/)"; exit 1 }
 $helper = Get-VhidHelper
-if ($helper) { Ok "virtual HID helper configured ($helper)" }
-else { Warn 'no virtual HID helper (PICO_VHID_HELPER): browsers cannot use the token yet, fingerprints work (desktop\windows\virtual-hid.md)' }
+if ($helper) { Ok "virtual HID helper found ($helper)" }
+else { Warn 'virtual HID helper not installed: browsers cannot use the token, fingerprints work (desktop\windows\vhid\README.md)' }
+if (Get-PnpDevice -ErrorAction SilentlyContinue | Where-Object { $_.HardwareID -contains 'Root\PicoVhf' }) {
+    Ok 'virtual HID driver installed (Root\PicoVhf)'
+} elseif ($helper) {
+    Warn 'virtual HID driver not installed: run desktop\windows\vhid\install.ps1 as administrator'; $problems = 1
+}
 
 # --- the token side ---
 if (Test-BridgeRunning) {

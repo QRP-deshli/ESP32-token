@@ -11,9 +11,12 @@ if (Test-BridgeRunning) {
     exit 1
 }
 if (-not (Get-VhidHelper)) {
-    Bad 'no virtual HID helper configured, so browsers cannot see the token on Windows yet.'
-    Info 'Set PICO_VHID_HELPER to a helper program (see desktop\windows\virtual-hid.md).'
-    Info 'Fingerprint management works without the bridge: desktop\windows\setup-token.ps1'
+    Bad 'the virtual HID driver and helper are not installed, so browsers cannot see the token.'
+    Info 'See desktop\windows\vhid\README.md. Fingerprint management works without them: setup-token.ps1'
+    exit 1
+}
+if (-not (Test-Admin)) {
+    Bad 'the bridge needs an administrator PowerShell on Windows (the virtual HID driver only lets administrators in).'
     exit 1
 }
 
