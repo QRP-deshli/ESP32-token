@@ -4,6 +4,7 @@ virtual_hid.py - the virtual USB HID FIDO device that browsers and libfido2 see,
     hid = open_virtual_hid(helper, log=log)  # the right backend for this OS, or HidUnavailable with the reason
     hid = UhidDevice()                     # Linux, /dev/uhid
     hid = HelperProcessHid([path])         # any OS: a small native helper program owns the device (macOS: desktop/mac/vhid)
+    hid = NullHid()                        # no device at all: run only the serial side (bring-up, --no-hid)
     hid.create(name, vid, pid)
     report = hid.poll(timeout)             # an output report from the OS (host -> token), or None
     hid.send_input(report)                 # a 64-byte input report to the OS (token -> host)
@@ -25,6 +26,7 @@ import struct
 import subprocess
 import sys
 import threading
+import time
 
 from serial_link import LinkClosed
 
@@ -73,6 +75,22 @@ class VirtualHid:
         return None
 
     def close(self):
+        pass
+
+
+# ----------------------------------------------------------------------------
+# No device: the bridge only keeps the serial link up (testing detection and replug where no backend exists yet)
+# ----------------------------------------------------------------------------
+class NullHid(VirtualHid):
+    def create(self, name, vid, pid):
+        pass
+
+    def poll(self, timeout):
+        if timeout:
+            time.sleep(timeout)
+        return None
+
+    def send_input(self, report):
         pass
 
 

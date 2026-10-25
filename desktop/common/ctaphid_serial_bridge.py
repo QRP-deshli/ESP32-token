@@ -14,6 +14,7 @@ Usage:
     sudo ./ctaphid_serial_bridge.py --port /dev/ttyUSB0 --baud 921600   # plain UART build
     ./ctaphid_serial_bridge.py                            # macOS (uses desktop/mac/vhid/pico-vhid)
     python ctaphid_serial_bridge.py --helper C:\\path\\to\\helper.exe   # Windows, see desktop/windows/virtual-hid.md
+    python ctaphid_serial_bridge.py --no-hid -v           # serial side only: detection, unplug/replug
     ./ctaphid_serial_bridge.py --list                     # show candidate ports
 
 Standard library only. The OS-specific parts are in serial_link.py (serial port) and virtual_hid.py (virtual device).
@@ -26,7 +27,7 @@ import time
 from multiplex import wait_readable
 from serial_frames import Decoder, encode, T_HID, T_PONG, HID_LEN
 from serial_link import list_ports, open_link, probe
-from virtual_hid import HidUnavailable, UHID_PATH, open_virtual_hid
+from virtual_hid import HidUnavailable, NullHid, UHID_PATH, open_virtual_hid
 
 
 # ----------------------------------------------------------------------------
@@ -149,7 +150,10 @@ class Bridge:
 
     def run(self):
         self.hid.create(self.args.name, self.args.vid, self.args.pid)
-        self.log(f"virtual FIDO device {self.args.vid:04x}:{self.args.pid:04x} created")
+        if isinstance(self.hid, NullHid):
+            self.log("no virtual device (--no-hid): only the serial link is kept up")
+        else:
+            self.log(f"virtual FIDO device {self.args.vid:04x}:{self.args.pid:04x} created")
         last_try = 0.0
         while True:
             if self.ser is None and time.monotonic() - last_try > 1.0:
@@ -170,6 +174,8 @@ def main():
     ap.add_argument("--uhid", default=UHID_PATH, help=f"uhid device node (Linux, default {UHID_PATH})")
     ap.add_argument("--helper", default=os.environ.get("PICO_VHID_HELPER"),
                     help="virtual HID helper program (default: $PICO_VHID_HELPER; on macOS desktop/mac/vhid/pico-vhid)")
+    ap.add_argument("--no-hid", action="store_true",
+                    help="create no virtual device, only keep the serial link up (test detection and unplug/replug)")
     ap.add_argument("--list", action="store_true", help="probe candidate ports and exit")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
@@ -181,7 +187,7 @@ def main():
 
     bridge = Bridge(args, None)
     try:
-        bridge.hid = open_virtual_hid(args.helper, args.uhid, bridge.vlog)
+        bridge.hid = NullHid() if args.no_hid else open_virtual_hid(args.helper, args.uhid, bridge.vlog)
     except HidUnavailable as e:
         print(e, file=sys.stderr)
         return 1

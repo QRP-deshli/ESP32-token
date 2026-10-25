@@ -3,14 +3,15 @@
    fake token (TCP on every OS, pty on POSIX)  <->  Bridge  <->  a virtual HID backend:
      - an in-memory fake (every OS, exercises the polling main loop used on Windows),
      - HelperProcessHid with a fake helper program (every OS, the macOS/Windows backend),
-     - UhidDevice on a fake /dev/uhid made from a SEQPACKET socketpair (Linux)."""
+     - UhidDevice on a fake /dev/uhid made from a SEQPACKET socketpair (Linux),
+     - NullHid (--no-hid): serial side only, unplug/replug recovery."""
 import os, queue, socket, struct, sys, tempfile, threading, time, types
 
 from fake_token import FakeToken, Checker, HAVE_PTY
 import ctaphid_serial_bridge as br
 from serial_frames import encode, T_HID
 from serial_link import probe
-from virtual_hid import VirtualHid, HelperProcessHid, UhidDevice, FIDO_REPORT_DESC
+from virtual_hid import VirtualHid, HelperProcessHid, NullHid, UhidDevice, FIDO_REPORT_DESC
 import virtual_hid as vh
 
 check = Checker()
@@ -119,6 +120,20 @@ try:
     hid.poll(1); check(False, "[helper] dead helper reported")
 except OSError:
     check(True, "[helper] dead helper reported as LinkClosed")
+tok.stop = True
+
+# ---- 2b. --no-hid: serial side only, the token is unplugged and comes back -------------------------------------------
+tok, seen = new_token()
+logs = []
+args = types.SimpleNamespace(port=tok.serve_tcp(), baud=115200, vid=0x1D50, pid=0x619B, name="x", verbose=False)
+bridge = br.Bridge(args, NullHid())
+bridge.log = lambda *a: logs.append(" ".join(map(str, a)))
+threading.Thread(target=bridge.run, daemon=True).start()
+check(wait_until(lambda: any(l.startswith("token on tcp://") for l in logs)), "[no-hid] bridge logs 'token on ...' without a virtual device")
+check(any("--no-hid" in l for l in logs), "[no-hid] bridge says it runs without a virtual device")
+tok.unplug()
+check(wait_until(lambda: any("serial link lost" in l for l in logs)), "[no-hid] unplug detected ('serial link lost')")
+check(wait_until(lambda: sum(l.startswith("token on") for l in logs) == 2, 5), "[no-hid] token found again after replug")
 tok.stop = True
 
 # ---- 3. Linux uhid backend on a fake /dev/uhid ---------------------------------------------------------------------
