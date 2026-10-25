@@ -65,7 +65,8 @@ check(p.returncode == 0 and "through the running bridge" in p.stdout and "sensor
       "fpctl status works while the bridge runs (through its control port)")
 
 enrol = subprocess.Popen(fpctl + ["enroll", "--id", "3"], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-enrolling.wait(5)
+# fpctl is a new Python process: on a slow CI machine it can take seconds to connect, so wait for the enrolment itself
+check(enrolling.wait(20) and bridge.control.client is not None, "fpctl enroll connected and the enrolment started")
 hid.q.put(INIT)                                         # a browser talks to the token during the enrolment
 try:
     resp = hid.out.get(timeout=3)
