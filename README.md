@@ -289,7 +289,7 @@ token on a PC, not yet on the real board.
 
 ```sh
 cd desktop/common/tests
-python3 test_serial_link.py && python3 test_fpctl.py && python3 test_bridge_e2e.py && python3 test_scripts.py
+python3 test_layout.py && python3 test_serial_link.py && python3 test_fpctl.py && python3 test_bridge_e2e.py && python3 test_scripts.py
 SDK=../../../pico-keys-sdk/src
 gcc -I$SDK/fingerprint test_fp_core.c $SDK/fingerprint/fp_core.c $SDK/fingerprint/fp_proto.c -o /tmp/t_fp && /tmp/t_fp
 gcc -I$SDK/usb/serial test_serial_proto.c $SDK/usb/serial/serial_proto.c -o /tmp/t_sp && /tmp/t_sp

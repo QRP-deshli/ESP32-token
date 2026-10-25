@@ -28,6 +28,7 @@ jobs:
           python-version: "3.x"
       - name: Python tests
         run: |
+          python test_layout.py
           python test_serial_link.py
           python test_fpctl.py
           python test_bridge_e2e.py
