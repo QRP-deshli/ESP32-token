@@ -1,0 +1,8 @@
+# cmd scripts and the driver INF must keep Windows line endings, also in a ZIP downloaded from GitHub
+*.cmd      text eol=crlf
+*.inf      text eol=crlf
+*.vcxproj  text eol=crlf
+*.c        text eol=lf
+*.h        text eol=lf
+*.md       text eol=lf
+*.pdf      binary
