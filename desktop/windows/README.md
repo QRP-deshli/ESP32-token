@@ -2,7 +2,7 @@
 
 | Part | Status |
 |---|---|
-| Serial link (COM ports, `kernel32` through `ctypes`), token detection (Espressif VID `303A` first) | implemented, host tests of the detection logic pass; **not tested on Windows with the token** |
+| Serial link (COM ports, `kernel32` through `ctypes`), token detection (Espressif VID `303A` first, Bluetooth COM ports skipped) | implemented; host tests with a fake registry and a fake `kernel32` pass in CI; **not tested on Windows with the token** |
 | `fpctl.py` (status, enroll, test, delete) | implemented; **not tested on Windows with the token** |
 | Virtual FIDO device | **not available**: needs a helper, see [virtual-hid.md](virtual-hid.md) |
 | Helper scripts | `setup-token.ps1`, `check-token.ps1`, `start-bridge.ps1`; **not run on Windows yet** (checked in CI by the PowerShell parser) |
@@ -29,6 +29,21 @@ Run a script with `powershell -ExecutionPolicy Bypass -File desktop\windows\chec
    offers it). To verify on the hardware: Device Manager shows `USB\VID_303A&PID_1001&MI_00`.
 4. **Enrol a fingerprint.** `setup-token.ps1`, or `cd desktop\common; py -3 fpctl.py enroll`.
 5. **Virtual device and browsers**: not possible yet, see [virtual-hid.md](virtual-hid.md).
+
+## Checking the serial side with the hardware
+
+These are the acceptance checks of the Windows serial issue; they need the token, and were not run yet. From
+`desktop\common`, with the token on the native USB port:
+
+```powershell
+py -3 ctaphid_serial_bridge.py --list          # the token's COM port, marked "-> token"
+py -3 fpctl.py status                          # "token on COMn", then "sensor OK, N fingerprint(s) enrolled"
+py -3 ctaphid_serial_bridge.py --no-hid -v     # "token on COMn"; unplug: "serial link lost"; replug: "token on COMn" again
+```
+
+`--no-hid` runs the bridge without a virtual device (there is no Windows backend yet), so only the serial link is
+exercised. While it runs, watch the token's UART log (`idf.py -p COMx monitor` on the other USB port): opening the port
+must not reboot the chip.
 
 ## Notes for whoever tests this with the hardware
 
