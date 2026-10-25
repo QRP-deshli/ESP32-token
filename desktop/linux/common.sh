@@ -6,6 +6,7 @@ DESKTOP_DIR="$(dirname "$SCRIPTS_DIR")"
 BRIDGE_DIR="${PICO_BRIDGE_DIR:-$DESKTOP_DIR/common}"   # ctaphid_serial_bridge.py, fpctl.py
 BRIDGE_PATTERN='^([^ ]*/)?python[0-9.]* +([^ ]*/)?ctaphid_serial_bridge\.py( |$)'   # anchored: only a real bridge process
 BRIDGE_LOG="${TMPDIR:-/tmp}/pico-fido2-bridge.log"
+# shellcheck disable=SC2034  # used by the scripts that source this file
 UDEV_RULE=/etc/udev/rules.d/70-pico-fido2.rules
 BRIDGE_STARTED_BY_US=0
 
@@ -56,6 +57,8 @@ stop_bridge() {
 cleanup_bridge() { [ "$BRIDGE_STARTED_BY_US" = 1 ] && stop_bridge; return 0; }
 
 # Start the bridge in the background, logging to $BRIDGE_LOG. Needs sudo to be authenticated already.
+# The log is written by this (user) shell on purpose, so it stays readable without sudo.
+# shellcheck disable=SC2024
 start_bridge_bg() {
     : >"$BRIDGE_LOG"
     if command -v setsid >/dev/null 2>&1; then
