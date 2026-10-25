@@ -82,7 +82,9 @@ function Delete-AllFlow {
     if (-not $script:SensorOk) { Show-StateLine; return }
     if ($script:Fingers -eq 0) { Info 'No fingers enrolled.'; return }
     Warn "This removes ALL $($script:Fingers) fingerprint(s). The token will refuse everything until you enrol again."
-    Invoke-Fpctl @('delete-all') | Out-Null   # asks you to type 'yes' itself
+    # ask here: a native program started from PowerShell does not always get the console input (redirected stdin)
+    if ((Read-Host "Delete ALL fingerprints? type 'yes'") -cne 'yes') { Info 'cancelled'; return }
+    Invoke-Fpctl @('delete-all', '--yes') | Out-Null
     Update-State | Out-Null; Info "$($script:Fingers) finger(s) left."
 }
 
