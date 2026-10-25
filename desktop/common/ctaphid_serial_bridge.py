@@ -26,10 +26,7 @@ import time
 
 from serial_frames import Decoder, encode, T_HID, T_PONG, HID_LEN
 from serial_link import list_ports, open_link, probe
-from virtual_hid import HelperProcessHid, UhidDevice
-
-HERE = os.path.dirname(os.path.abspath(__file__))
-MAC_HELPER = os.path.join(HERE, "..", "mac", "vhid", "pico-vhid")
+from virtual_hid import HidUnavailable, UHID_PATH, open_virtual_hid
 
 
 # ----------------------------------------------------------------------------
@@ -163,27 +160,6 @@ class Bridge:
             self.step()
 
 
-def open_hid(args, log):
-    """The virtual HID backend for this OS, or an explanation of why there is none."""
-    if args.helper:
-        return HelperProcessHid([args.helper], log)
-    if sys.platform.startswith("linux"):
-        try:
-            return UhidDevice(args.uhid, log=log)
-        except OSError as e:
-            raise SystemExit(f"cannot open {args.uhid}: {e}\n"
-                             "Run as root, or grant access with a udev rule, e.g.\n"
-                             '  KERNEL=="uhid", GROUP="plugdev", MODE="0660"\n'
-                             "and `sudo modprobe uhid` if the node is missing.")
-    if sys.platform == "darwin":
-        if not os.access(MAC_HELPER, os.X_OK):
-            raise SystemExit(f"the macOS virtual HID helper is not built ({os.path.normpath(MAC_HELPER)}).\n"
-                             "Build it with desktop/mac/vhid/build.sh (see desktop/mac/README.md).")
-        return HelperProcessHid([MAC_HELPER], log)
-    raise SystemExit("this OS has no built-in virtual HID backend. On Windows pass --helper with a virtual HID helper\n"
-                     "(see desktop/windows/virtual-hid.md). fpctl.py works without the bridge.")
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--port", default=os.environ.get("PICO_TOKEN_PORT"),
@@ -193,7 +169,7 @@ def main():
     ap.add_argument("--vid", type=lambda x: int(x, 0), default=0x1D50, help="USB vendor id of the virtual device")
     ap.add_argument("--pid", type=lambda x: int(x, 0), default=0x619B, help="USB product id of the virtual device")
     ap.add_argument("--name", default="Pico FIDO2 (serial bridge)")
-    ap.add_argument("--uhid", default="/dev/uhid", help="uhid device node (Linux)")
+    ap.add_argument("--uhid", default=UHID_PATH, help=f"uhid device node (Linux, default {UHID_PATH})")
     ap.add_argument("--helper", default=os.environ.get("PICO_VHID_HELPER"),
                     help="virtual HID helper program (default: $PICO_VHID_HELPER; on macOS desktop/mac/vhid/pico-vhid)")
     ap.add_argument("--list", action="store_true", help="probe candidate ports and exit")
@@ -206,7 +182,11 @@ def main():
         return 0
 
     bridge = Bridge(args, None)
-    bridge.hid = open_hid(args, bridge.vlog)
+    try:
+        bridge.hid = open_virtual_hid(args.helper, args.uhid, bridge.vlog)
+    except HidUnavailable as e:
+        print(e, file=sys.stderr)
+        return 1
     try:
         bridge.run()
     except KeyboardInterrupt:
