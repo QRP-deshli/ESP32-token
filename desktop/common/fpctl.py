@@ -129,7 +129,11 @@ def main():
             return 0 if st == 0 else 1
 
         if args.cmd == "delete-all":
-            if not args.yes and input("Delete ALL fingerprints? type 'yes': ").strip() != "yes":
+            try:
+                answer = "yes" if args.yes else input("Delete ALL fingerprints? type 'yes': ").strip()
+            except EOFError:
+                answer = ""
+            if answer != "yes":
                 print("cancelled")
                 return 1
             st, a, b = request(link, [OP_DELETE_ALL])

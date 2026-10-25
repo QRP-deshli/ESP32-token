@@ -53,6 +53,36 @@ desktop/linux/start-bridge.sh    # every day: starts the bridge (leave it open)
 Browsers additionally need the udev rule once (`desktop/linux/70-pico-fido2.rules`). The full step-by-step manual is in
 the top-level `README.md`.
 
+## Helper scripts on each OS
+
+| | Linux (`linux/*.sh`) | macOS (`mac/*.sh`, bash 3.2) | Windows (`windows/*.ps1`) |
+|---|---|---|---|
+| system preparation | `sudo`: stop ModemManager, load `uhid` | none (no sudo, no driver) | none; bridge and `fido2-token` need an administrator PowerShell |
+| virtual device check | `/dev/uhid`, udev rule | `vhid/pico-vhid --check` | `vhid\pico-vhid.exe`, `Root\PicoVhf` driver installed |
+| bridge process | `pgrep`/`pkill` | `pgrep`/`pkill` (also matches Homebrew's `Python`) | `Get-CimInstance Win32_Process` / `Stop-Process` |
+| FIDO device for `fido2-token` | `/dev/hidrawN` | `ioreg://…` | `\\?\hid#…` |
+| menu, wording, `RESET` confirmation, exit codes | reference | same | same |
+| tested | with the token | menu against a fake token (CI) | menu against a fake token (CI) |
+
+`tests/test_scripts.py` and `tests/test_setup_scripts.py` run each OS's `check-token` and `setup-token` (enrol, test,
+delete, delete all) against a fake token in CI.
+
+### FIDO reset and the 10-second window
+
+The token accepts a reset only in the first 10 seconds after power-up. After the replug the flow needs:
+
+| Step | Time |
+|---|---|
+| token boots and its USB port appears | about 1 s (to measure) |
+| the bridge notices (retries every 1 s, PING/PONG probe up to 0.6 s per candidate port) | up to about 1.6 s |
+| the script sees "token on" in the bridge log (polls every 0.5 s) | up to 0.5 s |
+| the virtual FIDO device is found (`fido2-token -L`, polls every 0.5 s) | usually immediately; it stays up while the token is away |
+| `fido2-token -R` reaches the token | well under 1 s |
+
+That is about 3–4 s, leaving margin for the finger touch. On macOS and Windows the script now detects the replug by
+itself; earlier it asked to wait about 3 seconds and press Enter, which spent part of the window on the person. The Linux
+script still asks for Enter (unchanged, it worked in testing). None of this was timed on hardware for macOS or Windows.
+
 ## Using it on macOS or Windows
 
 See `mac/README.md` and `windows/README.md`.
