@@ -60,6 +60,9 @@ jobs:
       - name: build the macOS virtual HID helper
         if: runner.os == 'macOS'
         run: desktop/mac/vhid/build.sh
+      - name: macOS helper without the entitlement
+        if: runner.os == 'macOS'
+        run: python3 desktop/common/tests/test_mac_helper.py
       - name: PowerShell parse (Windows scripts)
         if: runner.os == 'Windows'
         shell: pwsh
