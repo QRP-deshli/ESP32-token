@@ -35,6 +35,7 @@ jobs:
           python test_fpctl.py
           python test_bridge_e2e.py
           python test_scripts.py
+          python test_setup_scripts.py
       - name: C tests (firmware code)
         # gcc on Linux and Windows (MinGW on the runner image), clang as cc on macOS
         run: |
