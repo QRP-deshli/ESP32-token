@@ -20,10 +20,10 @@ Standard library only. The OS-specific parts are in serial_link.py (serial port)
 """
 import argparse
 import os
-import select
 import sys
 import time
 
+from multiplex import wait_readable
 from serial_frames import Decoder, encode, T_HID, T_PONG, HID_LEN
 from serial_link import list_ports, open_link, probe
 from virtual_hid import HidUnavailable, UHID_PATH, open_virtual_hid
@@ -124,15 +124,13 @@ class Bridge:
 
     def step(self):
         """One turn of the main loop: wait up to 0.5 s for either side, handle what arrived."""
-        fds = [self.hid.fileno()] + ([self.ser.fileno()] if self.ser is not None else [])
-        if None not in fds:
-            # both sides are selectable file descriptors (Linux, macOS)
-            r, _, _ = select.select(fds, [], [], 0.5)
-            if fds[0] in r:
+        ready = wait_readable([self.hid] + ([self.ser] if self.ser is not None else []), 0.5)
+        if ready is not None:
+            if self.hid in ready:
                 report = self.hid.poll(0)
                 if report is not None:
                     self.on_output_report(report)
-            if self.ser is not None and self.ser.fileno() in r:
+            if self.ser is not None and self.ser in ready:
                 self.read_serial(0)
             return
         # otherwise poll both with short timeouts (Windows handles, helper pipes)
