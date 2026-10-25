@@ -51,5 +51,9 @@
   <ItemGroup>
     <Inf Include="pico_vhf.inf" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- copy pico_vhf.sys into the driver package folder next to the .inf before inf2cat runs -->
+    <FilesToPackage Include="$(TargetPath)" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
