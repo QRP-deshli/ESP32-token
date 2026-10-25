@@ -26,24 +26,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Python tests
+      - name: host tests (Python, and the C tests of firmware code)
+        # every test_*.py is picked up automatically; C tests use gcc on Linux and Windows (MinGW), clang as cc on macOS
         run: |
-          python test_layout.py
-          python test_serial_link.py
-          python test_windows_serial.py
-          python test_posix_serial.py
-          python test_fpctl.py
-          python test_bridge_e2e.py
-          python test_control.py
-          python test_scripts.py
-          python test_setup_scripts.py
-      - name: C tests (firmware code)
-        # gcc on Linux and Windows (MinGW on the runner image), clang as cc on macOS
-        run: |
-          SDK=../../../pico-keys-sdk/src
           CC=gcc; [ "$RUNNER_OS" = macOS ] && CC=cc
-          $CC -I$SDK/fingerprint test_fp_core.c $SDK/fingerprint/fp_core.c $SDK/fingerprint/fp_proto.c -o t_fp && ./t_fp
-          $CC -I$SDK/usb/serial test_serial_proto.c $SDK/usb/serial/serial_proto.c -o t_sp && ./t_sp
+          CC=$CC python run_tests.py
 
   scripts:
     strategy:
@@ -55,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: shellcheck (Linux and macOS scripts)
         if: runner.os == 'Linux'
-        run: shellcheck -x -S error desktop/linux/*.sh desktop/mac/*.sh desktop/mac/vhid/build.sh desktop/issues/create-issues.sh
+        run: shellcheck -x -S warning desktop/linux/*.sh desktop/mac/*.sh desktop/mac/vhid/build.sh desktop/issues/create-issues.sh
       - name: bash 3.2 syntax (macOS scripts)
         if: runner.os == 'macOS'
         run: for f in desktop/mac/*.sh desktop/mac/vhid/build.sh; do /bin/bash -n "$f"; done

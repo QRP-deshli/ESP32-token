@@ -290,14 +290,12 @@ token on a PC, not yet on the real board.
 
 ```sh
 cd desktop/common/tests
-python3 test_layout.py && python3 test_serial_link.py && python3 test_windows_serial.py && python3 test_posix_serial.py && python3 test_fpctl.py && python3 test_bridge_e2e.py && python3 test_control.py && python3 test_scripts.py && python3 test_setup_scripts.py
-SDK=../../../pico-keys-sdk/src
-gcc -I$SDK/fingerprint test_fp_core.c $SDK/fingerprint/fp_core.c $SDK/fingerprint/fp_proto.c -o /tmp/t_fp && /tmp/t_fp
-gcc -I$SDK/usb/serial test_serial_proto.c $SDK/usb/serial/serial_proto.c -o /tmp/t_sp && /tmp/t_sp
+python3 run_tests.py            # every test_*.py plus the two C tests of firmware code (needs cc/gcc)
 ```
 
 The Python tests run on Linux, macOS and Windows (a fake token on a TCP port; on Linux also a fake `/dev/uhid`).
-CI runs all of them on the three OSes: `.github/workflows/desktop.yml`.
+CI runs all of them on the three OSes: `.github/workflows/desktop.yml`. What each test covers and how to test a new
+backend without hardware: `desktop/common/tests/README.md`.
 
 ## License
 
