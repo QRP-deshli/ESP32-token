@@ -19,5 +19,5 @@ sudo udevadm control --reload
 # restart the bridge afterwards: the device node is created when the bridge starts
 ```
 
-Linux-only things used here, which Windows and macOS need other answers for: `/dev/uhid` (virtual HID), `/dev/hidrawN`,
+Linux-only things used here (macOS and Windows have their own answers in `../mac/` and `../windows/`): `/dev/uhid` (virtual HID), `/dev/hidrawN`,
 udev, `termios` serial access, `systemctl stop ModemManager`, `modprobe`, `pkill`, `sudo`.

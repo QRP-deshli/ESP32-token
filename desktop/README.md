@@ -7,16 +7,28 @@ as a FIDO key, the PC needs two things:
    `pico-keys-sdk/src/usb/serial/serial_proto.h`), and
 2. a **virtual USB HID FIDO device** that browsers and libfido2 can use, fed from that serial link.
 
-The same Python code does both (`common/`), but the virtual-device part and the helper scripts are operating-system
-specific.
+The Python code in `common/` does both. The operating-system specific parts sit behind two small interfaces:
+
+| Module | What it is | Backends |
+|---|---|---|
+| `serial_frames.py` | the frame protocol (CRC, encoder, streaming decoder); no OS-specific imports | |
+| `serial_link.py` | `SerialLink` (open, read with timeout, write, close) and port detection | `PosixSerial` (termios: Linux, macOS), `WindowsSerial` (ctypes + kernel32), `SocketLink` (`tcp://host:port`, tests) |
+| `virtual_hid.py` | `VirtualHid` (create, poll output reports, send input reports, close) | `UhidDevice` (Linux), `HelperProcessHid` (a native helper over stdin/stdout: macOS `mac/vhid`, Windows later) |
+| `ctaphid_serial_bridge.py` | the `Bridge` that moves 64-byte reports between the two, and its command line | |
+| `fpctl.py` | fingerprint admin over the serial link | |
+
+Everything is standard library only (no pyserial): the only OS-specific code is a `ctypes` Windows backend and termios.
+A new backend is added in `serial_link.py` or `virtual_hid.py` without touching `Bridge` or `fpctl.py`.
+`--port` defaults to `$PICO_TOKEN_PORT` and `--helper` to `$PICO_VHID_HELPER`.
 
 | Folder | What is in it | Status |
 |---|---|---|
-| `common/` | `ctaphid_serial_bridge.py` (serial link + virtual HID bridge), `fpctl.py` (fingerprint admin), host tests in `tests/` | works on **Linux**; uses Linux-only APIs (see the issues) |
+| `common/` | the modules above, host tests in `tests/` | host tests pass on Linux, macOS and Windows (CI) |
 | `linux/` | `setup-token.sh`, `check-token.sh`, `start-bridge.sh`, `common.sh`, udev rule | **works** (tested on Ubuntu with Brave) |
-| `windows/` | | **not implemented**, see `windows/README.md` |
-| `mac/` | | **not implemented**, see `mac/README.md` |
+| `mac/` | the same scripts (bash 3.2), `vhid/` virtual HID helper (Swift) | implemented, **not tested with the token**; the helper needs an Apple entitlement, see `mac/README.md` |
+| `windows/` | the same scripts (PowerShell), virtual HID research | serial side implemented, **not tested with the token**; no virtual HID backend yet, see `windows/README.md` |
 | `issues/` | GitHub issues for the Windows/macOS work, plus a script that files them | |
+| `no-bridge-options.md` | comparison of ways to drop the bridge altogether | |
 
 ## Using it on Linux
 
@@ -30,6 +42,10 @@ desktop/linux/start-bridge.sh    # every day: starts the bridge (leave it open)
 
 Browsers additionally need the udev rule once (`desktop/linux/70-pico-fido2.rules`). The full step-by-step manual is in
 the top-level `README.md`.
+
+## Using it on macOS or Windows
+
+See `mac/README.md` and `windows/README.md`.
 
 ## Working on Windows or macOS support
 
