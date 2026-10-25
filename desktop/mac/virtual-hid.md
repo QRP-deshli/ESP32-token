@@ -15,9 +15,19 @@ Both user-space APIs are documented in the SDK headers (`IOKit/hidsystem/IOHIDUs
 `com.apple.developer.hid.virtual.device` is required"; `CoreHID.framework`). Python cannot call either directly, so the
 bridge starts a small helper and passes reports over its stdin/stdout (protocol in `desktop/common/virtual_hid.py`).
 
-Browsers on macOS (Chrome, Firefox, Safari via the system) find security keys through IOKit HID, matching usage page
-`0xF1D0`. A device made with `IOHIDUserDevice` is an `IOHIDDevice` in the kernel, so it is found the same way as a real
-key. **Not verified on hardware yet.**
+**Decision: `IOHIDUserDevice` in a small Swift helper** (`vhid/`). It needs the same entitlement as CoreHID but works
+from macOS 10.15, and a user-space helper is far less to install and sign than a DriverKit system extension.
+
+### How browsers reach the device
+
+- Chrome and Edge enumerate HID devices with `IOHIDManager` and pick FIDO keys by usage page `0xF1D0`, usage `0x01`.
+- Firefox does the same through its `authenticator-rs` HID backend.
+- Safari does not talk HID itself: it uses the system's WebAuthn implementation (AuthenticationServices), which also
+  reaches USB security keys as HID devices.
+
+A device made with `IOHIDUserDevice` is a real `IOHIDDevice` in the kernel, published with the FIDO report descriptor
+and `PrimaryUsagePage`/`PrimaryUsage` set, so all of them should find it like a plugged-in key. **Not verified with a
+browser yet** (no entitlement and no token were available).
 
 ## The helper: `vhid/pico-vhid`
 
@@ -45,9 +55,16 @@ What was tested on macOS 27 (Apple silicon), without the token:
 1. A paid Apple Developer Program membership; request the "HID Virtual Device" capability for your team from Apple
    (Certificates, Identifiers & Profiles, or the capability request form).
 2. Create an App ID with the capability, a development provisioning profile that includes it, and a signing identity.
-3. Because `pico-vhid` is a bare command-line tool, macOS only honours the profile when the binary is inside an app
-   bundle (`pico-vhid.app/Contents/embedded.provisionprofile`). If plain signing is refused, wrap it in a minimal
-   bundle and point the bridge at it with `--helper path/to/pico-vhid.app/Contents/MacOS/pico-vhid`.
+3. Download the profile and build the app bundle with it:
+
+   ```sh
+   desktop/mac/vhid/build.sh "Apple Development: you (TEAMID)" ~/Downloads/PicoVHID.provisionprofile
+   desktop/mac/vhid/pico-vhid --check      # "OK: the virtual HID device can be created"
+   ```
+
+   `build.sh` reads the App ID from the profile, writes `PicoVHID.app/Contents/Info.plist` with that bundle identifier,
+   embeds the profile, signs the bundle with the entitlement and links `pico-vhid` into it (the bridge's default path).
+   A bare binary signed with the entitlement but without a profile is killed by macOS at start (exit 137).
 
 For local development only, the entitlement check can be relaxed by disabling System Integrity Protection and AMFI
 (`csrutil disable` in Recovery, then `sudo nvram boot-args="amfi_get_out_of_my_way=1"`). **This removes important
@@ -56,5 +73,12 @@ protections from the whole Mac**; do it only on a test machine and undo it after
 
 ## Removing it
 
-Stop the bridge (Ctrl+C); the device disappears when the helper exits. Delete `desktop/mac/vhid/pico-vhid`. Nothing is
-installed outside the repository.
+Stop the bridge (Ctrl+C); the device disappears when the helper exits. Delete `desktop/mac/vhid/pico-vhid` and
+`desktop/mac/vhid/PicoVHID.app`. Nothing is installed outside the repository; revoke the provisioning profile in the
+developer portal if you no longer need it.
+
+## Checks without hardware
+
+`desktop/common/tests/test_mac_helper.py` (run in CI on macOS) builds nothing itself; after `build.sh` it checks that
+the helper without the entitlement refuses with a clear message and that the bridge stops with that reason.
+`check-token.sh` runs `pico-vhid --check`, so it reports whether this Mac can really create the device.

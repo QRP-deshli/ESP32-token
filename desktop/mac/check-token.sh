@@ -10,10 +10,14 @@ echo
 
 # --- the PC side ---
 if [ -x "$VHID_HELPER" ]; then
-    if codesign -d --entitlements - "$VHID_HELPER" 2>/dev/null | grep -q hid.virtual.device; then
-        ok "virtual HID helper built and signed with the HID entitlement"
+    "$VHID_HELPER" --check >/dev/null 2>&1; rc=$?
+    if [ "$rc" -eq 0 ]; then
+        ok "virtual HID helper can create the virtual device"
+    elif [ "$rc" -ge 128 ]; then
+        warn "macOS killed the virtual HID helper (signal $((rc - 128))): its entitlement is not backed by a provisioning profile (desktop/mac/virtual-hid.md)"
+        problems=1
     else
-        warn "virtual HID helper is built but has no HID entitlement: browsers will not see the token (desktop/mac/virtual-hid.md)"
+        warn "virtual HID helper cannot create the device (no HID entitlement): browsers will not see the token (desktop/mac/virtual-hid.md)"
         problems=1
     fi
 else warn "virtual HID helper not built: run desktop/mac/vhid/build.sh (the bridge needs it)"; problems=1; fi

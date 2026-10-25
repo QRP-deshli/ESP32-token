@@ -31,3 +31,4 @@ __pycache__/
 /desktop/windows/vhid/driver/x64/
 /desktop/windows/vhid/helper/*.exe
 /desktop/windows/vhid/pico-vhid.exe
+/desktop/mac/vhid/PicoVHID.app/
