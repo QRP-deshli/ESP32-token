@@ -2,7 +2,9 @@
 name: desktop
 
 on:
+  # branches are covered by pull_request; push only runs on main (after a merge), so a PR is not tested twice
   push:
+    branches: [main]
     paths: ["desktop/**", "pico-keys-sdk/src/fingerprint/**", "pico-keys-sdk/src/usb/serial/**", ".github/workflows/desktop.yml"]
   pull_request:
     paths: ["desktop/**", "pico-keys-sdk/src/fingerprint/**", "pico-keys-sdk/src/usb/serial/**", ".github/workflows/desktop.yml"]
