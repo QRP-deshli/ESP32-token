@@ -28,8 +28,9 @@
    accessible to the logged-in user without `sudo`. Use `/dev/cu.*`, not `/dev/tty.*` (the latter waits for carrier
    detect). There is no ModemManager on macOS.
 4. **Enrol a fingerprint.** `desktop/mac/setup-token.sh`, or by hand: `cd desktop/common && python3 fpctl.py enroll`.
-5. **Virtual device.** Build and sign the helper with the entitlement ([virtual-hid.md](virtual-hid.md)):
-   `desktop/mac/vhid/build.sh "Apple Development: you (ID)"`.
+5. **Virtual device.** Get the HID entitlement and a provisioning profile, then build the signed helper app
+   ([virtual-hid.md](virtual-hid.md)): `desktop/mac/vhid/build.sh "Apple Development: you (ID)" profile.provisionprofile`,
+   and check it with `desktop/mac/vhid/pico-vhid --check`.
 6. **Daily use.** `desktop/mac/start-bridge.sh`, leave it open, register on https://www.token2.com/tools/fido2-demo in
    Chrome. The bridge prints `>>> TOUCH THE FINGERPRINT SENSOR NOW <<<` when the token waits for a finger.
 
