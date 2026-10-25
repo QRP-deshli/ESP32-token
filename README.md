@@ -216,7 +216,8 @@ reload it after clicking register.
 - **Do not run `fido2-token -R`** (FIDO reset): same effect.
 - **Do not forget your PIN.** After 8 wrong tries it blocks, and the only way out is the reset above, which also needs your finger.
 - Re-flashing with plain `idf.py flash` is safe: keys, credentials and fingerprints are kept.
-- Do not run `fpctl.py` while the bridge runs: both need the same serial port.
+- `fpctl.py` may run while the bridge runs: it then goes through the bridge's local control port (127.0.0.1:47731).
+  Do not run two bridges, or the bridge and another serial program, at the same time.
 
 ---
 
@@ -235,7 +236,7 @@ reload it after clicking register.
    `>>> TOUCH THE FINGERPRINT SENSOR NOW <<<` (within 15 seconds).
 
 Notes: unplugging and replugging the token is fine, the bridge reconnects on its own (restart it if it does not).
-Only enrolled fingers work, and the sensor decides; add or remove fingers with `fpctl.py` while the bridge is stopped.
+Only enrolled fingers work, and the sensor decides; add or remove fingers with `fpctl.py` (the bridge may keep running).
 
 ---
 
