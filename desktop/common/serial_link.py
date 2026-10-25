@@ -13,6 +13,7 @@ serial_link.py - the serial link to the token, with one backend per operating sy
 Backends: PosixSerial (termios; Linux and macOS), WindowsSerial (ctypes + kernel32), SocketLink (tcp://, used by the
 host tests and usable for a token reached over the network). Adding a backend only touches this file.
 """
+import errno
 import glob
 import os
 import select
@@ -77,12 +78,24 @@ class PosixSerial(SerialLink):
         cc[termios.VTIME] = 0
         termios.tcsetattr(self.fd, termios.TCSANOW,
                           [0, 0, cflag, 0, speed or termios.B115200, speed or termios.B115200, cc])
-        if speed is None and sys.platform == "darwin":
+        if sys.platform == "darwin":
             import fcntl
+            if speed is None:
+                try:
+                    fcntl.ioctl(self.fd, self.IOSSIOSPEED, struct.pack("L", baud))
+                except OSError:
+                    pass
+            # macOS lets several programs open the same port; the bridge and fpctl.py must not share it. TIOCEXCL
+            # keeps other programs out (serial monitors), the lock makes our own tools fail fast with "busy".
             try:
-                fcntl.ioctl(self.fd, self.IOSSIOSPEED, struct.pack("L", baud))
+                fcntl.ioctl(self.fd, termios.TIOCEXCL)
             except OSError:
                 pass
+            try:
+                fcntl.flock(self.fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                os.close(self.fd)
+                raise OSError(errno.EBUSY, f"{path} is in use (is ctaphid_serial_bridge.py or fpctl.py running?)")
         termios.tcflush(self.fd, termios.TCIOFLUSH)
 
     def fileno(self):
@@ -95,6 +108,8 @@ class PosixSerial(SerialLink):
             chunk = os.read(self.fd, 512)
         except BlockingIOError:
             return b""
+        except OSError as e:               # ENXIO (macOS) / EIO (Linux) once the token is unplugged
+            raise LinkClosed(f"{self.name}: {e}") from e
         if not chunk:
             raise LinkClosed(f"{self.name} closed")
         return chunk
@@ -109,6 +124,8 @@ class PosixSerial(SerialLink):
                 if time.monotonic() > deadline:
                     raise TimeoutError("serial write timeout")
                 select.select([], [self.fd], [], 0.05)
+            except OSError as e:
+                raise LinkClosed(f"{self.name}: {e}") from e
 
     def close(self):
         try:
