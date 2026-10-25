@@ -1,0 +1,8 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/esp_tinyusb:
+    version: "^1.7.6"
+    rules:
+      - if: "target in [esp32s2, esp32s3, esp32p4]"
+  #espressif/tinyusb: "^0.15.0"
+  zorxx/neopixel: "^1.0.4"

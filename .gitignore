@@ -1,0 +1,21 @@
+# ESP-IDF build output and generated config
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+
+# Python
+__pycache__/
+*.pyc
+
+# files created by the fido2-cred / fido2-assert test commands in the README
+/cred
+/cred_param
+/assert_param
+/pubkey
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
