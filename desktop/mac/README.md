@@ -2,7 +2,7 @@
 
 | Part | Status |
 |---|---|
-| Serial link, token detection (`/dev/cu.usbmodem*`) | implemented, host tests pass on macOS; **not tested with the token** |
+| Serial link, token detection (`/dev/cu.usbmodem*`), exclusive open, unplug/replug | implemented, host tests on a pty pass on macOS; **not tested with the token** |
 | `fpctl.py` (status, enroll, test, delete) | implemented, host tests pass; **not tested with the token** |
 | Virtual FIDO device (`vhid/pico-vhid`) | implemented and builds; needs the HID entitlement to run, see [virtual-hid.md](virtual-hid.md) |
 | Helper scripts | `setup-token.sh`, `check-token.sh`, `start-bridge.sh` (bash 3.2), checked against a fake token |
@@ -33,12 +33,26 @@
 6. **Daily use.** `desktop/mac/start-bridge.sh`, leave it open, register on https://www.token2.com/tools/fido2-demo in
    Chrome. The bridge prints `>>> TOUCH THE FINGERPRINT SENSOR NOW <<<` when the token waits for a finger.
 
+## Checking the serial side with the hardware
+
+The acceptance checks of the macOS serial issue; they need the token and were not run yet. From `desktop/common`:
+
+```sh
+python3 ctaphid_serial_bridge.py --list         # /dev/cu.usbmodemXXXX -> token
+python3 fpctl.py status                         # "token on /dev/cu.usbmodemXXXX", "sensor OK, N fingerprint(s) enrolled"
+python3 ctaphid_serial_bridge.py --no-hid -v    # unplug: "serial link lost"; replug: "token on /dev/cu.usbmodemXXXX" again
+```
+
+While the bridge runs, `python3 fpctl.py status` must say the port is in use (the bridge holds it exclusively). Watch the
+token's UART log on the other USB port: opening the native port must not reboot the chip. macOS has no ModemManager; no
+system service was found that opens `/dev/cu.usbmodem*` by itself (to confirm with `lsof /dev/cu.usbmodem*`).
+
 ## Troubleshooting
 
 | What you see | Likely cause | What to do |
 |---|---|---|
 | `no token found` | wrong USB port, or the bridge holds the port | use the native USB port; stop the bridge; `ls /dev/cu.usbmodem*` |
-| `cannot open /dev/cu.usbmodem…: Resource busy` | another program (serial monitor, `idf.py monitor`, the bridge) has the port | close it |
+| `cannot open /dev/cu.usbmodem…: Resource busy` or `… is in use` | another program (serial monitor, `idf.py monitor`, the bridge) has the port | close it; `lsof /dev/cu.usbmodem*` shows which |
 | `the macOS virtual HID helper is not built` | `vhid/pico-vhid` missing | `desktop/mac/vhid/build.sh` |
 | `pico-vhid: cannot create the virtual HID device` | helper built without the entitlement | sign it with the entitlement, [virtual-hid.md](virtual-hid.md) |
 | the bridge stops with `virtual HID helper exited (status -9)` | macOS killed a binary that claims the entitlement without a valid profile | see [virtual-hid.md](virtual-hid.md), "Getting the entitlement" |
