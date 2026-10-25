@@ -64,9 +64,28 @@ jobs:
         shell: pwsh
         run: |
           $failed = $false
-          foreach ($f in Get-ChildItem desktop/windows/*.ps1) {
+          foreach ($f in Get-ChildItem desktop/windows -Recurse -Filter *.ps1) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errors) | Out-Null
             foreach ($e in $errors) { Write-Host "$($f.Name):$($e.Extent.StartLineNumber): $($e.Message)"; $failed = $true }
           }
           if ($failed) { exit 1 }
+
+  windows-vhid:
+    # the Windows virtual HID driver (needs the WDK, which the windows-2022 image ships) and its helper
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - name: build the helper (MinGW)
+        shell: bash
+        working-directory: desktop/windows/vhid/helper
+        run: gcc -O2 -Wall -Werror -o pico-vhid.exe pico-vhid.c -lsetupapi
+      - name: build the driver (KMDF + VHF, test-signed)
+        run: msbuild desktop/windows/vhid/driver/pico_vhf.vcxproj /p:Configuration=Release /p:Platform=x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pico-vhf-windows-x64
+          path: |
+            desktop/windows/vhid/driver/x64/Release/pico_vhf/
+            desktop/windows/vhid/helper/pico-vhid.exe
