@@ -294,7 +294,8 @@ python3 run_tests.py            # every test_*.py plus the two C tests of firmwa
 ```
 
 The Python tests run on Linux, macOS and Windows (a fake token on a TCP port; on Linux also a fake `/dev/uhid`).
-CI runs all of them on the three OSes: `.github/workflows/desktop.yml`.
+CI runs all of them on the three OSes: `.github/workflows/desktop.yml`. What each test covers and how to test a new
+backend without hardware: `desktop/common/tests/README.md`.
 
 ## License
 
