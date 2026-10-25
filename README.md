@@ -216,7 +216,8 @@ reload it after clicking register.
 - **Do not run `fido2-token -R`** (FIDO reset): same effect.
 - **Do not forget your PIN.** After 8 wrong tries it blocks, and the only way out is the reset above, which also needs your finger.
 - Re-flashing with plain `idf.py flash` is safe: keys, credentials and fingerprints are kept.
-- Do not run `fpctl.py` while the bridge runs: both need the same serial port.
+- `fpctl.py` may run while the bridge runs: it then goes through the bridge's local control port (127.0.0.1:47731).
+  Do not run two bridges, or the bridge and another serial program, at the same time.
 
 ---
 
@@ -235,7 +236,7 @@ reload it after clicking register.
    `>>> TOUCH THE FINGERPRINT SENSOR NOW <<<` (within 15 seconds).
 
 Notes: unplugging and replugging the token is fine, the bridge reconnects on its own (restart it if it does not).
-Only enrolled fingers work, and the sensor decides; add or remove fingers with `fpctl.py` while the bridge is stopped.
+Only enrolled fingers work, and the sensor decides; add or remove fingers with `fpctl.py` (the bridge may keep running).
 
 ---
 
@@ -289,7 +290,7 @@ token on a PC, not yet on the real board.
 
 ```sh
 cd desktop/common/tests
-python3 test_layout.py && python3 test_serial_link.py && python3 test_windows_serial.py && python3 test_posix_serial.py && python3 test_fpctl.py && python3 test_bridge_e2e.py && python3 test_scripts.py && python3 test_setup_scripts.py
+python3 test_layout.py && python3 test_serial_link.py && python3 test_windows_serial.py && python3 test_posix_serial.py && python3 test_fpctl.py && python3 test_bridge_e2e.py && python3 test_control.py && python3 test_scripts.py && python3 test_setup_scripts.py
 SDK=../../../pico-keys-sdk/src
 gcc -I$SDK/fingerprint test_fp_core.c $SDK/fingerprint/fp_core.c $SDK/fingerprint/fp_proto.c -o /tmp/t_fp && /tmp/t_fp
 gcc -I$SDK/usb/serial test_serial_proto.c $SDK/usb/serial/serial_proto.c -o /tmp/t_sp && /tmp/t_sp

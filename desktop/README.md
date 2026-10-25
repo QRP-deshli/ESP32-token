@@ -16,7 +16,8 @@ The Python code in `common/` does both. The operating-system specific parts sit 
 | `virtual_hid.py` | `VirtualHid` (create, poll output reports, send input reports, close); `open_virtual_hid()` picks the backend for this OS | `UhidDevice` (Linux), `HelperProcessHid` (a native helper over stdin/stdout: macOS `mac/vhid`, Windows later) |
 | `multiplex.py` | `wait_readable()`: `select()` where every source has a file descriptor, otherwise the caller polls | |
 | `ctaphid_serial_bridge.py` | the `Bridge` that moves 64-byte reports between the two, and its command line | |
-| `fpctl.py` | fingerprint admin over the serial link | |
+| `fpctl.py` | fingerprint admin over the serial link, or through a running bridge | |
+| `control.py` | the bridge's control port (127.0.0.1:47731, `$PICO_CONTROL_PORT`, `--no-control`): passes fingerprint admin frames between `fpctl.py` and the token | |
 
 A new backend is added in `serial_link.py` (`open_link`, `list_ports`) or `virtual_hid.py` (`open_virtual_hid`) without
 touching `Bridge` or `fpctl.py`; `tests/test_layout.py` fails if OS-specific imports, platform checks or `/dev` paths
@@ -52,6 +53,16 @@ desktop/linux/start-bridge.sh    # every day: starts the bridge (leave it open)
 
 Browsers additionally need the udev rule once (`desktop/linux/70-pico-fido2.rules`). The full step-by-step manual is in
 the top-level `README.md`.
+
+## fpctl.py while the bridge runs
+
+The bridge owns the serial port, so it offers a local control port: `fpctl.py` connects to 127.0.0.1:47731 when a
+bridge answers there, and opens the serial port itself otherwise. Only fingerprint admin frames pass (one client at a
+time); CTAPHID traffic is not delayed. If a browser and `fpctl.py` need the sensor at the same moment, the token answers
+one of them "the sensor is busy, try again". Only local programs can connect, and changing fingerprints still needs a
+touch with an enrolled finger (except the very first enrolment). `--no-control` turns the port off.
+
+The helper scripts still stop the bridge before changing fingers; they can be simplified to use the control port.
 
 ## Helper scripts on each OS
 

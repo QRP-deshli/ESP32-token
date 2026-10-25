@@ -10,7 +10,8 @@ fpctl.py - manage the fingerprints of a Pico FIDO2 token that has the Waveshare 
     ./fpctl.py test                   check that a finger is recognised (nothing is changed)
 
 Once at least one finger is enrolled, enrol/delete first ask you to touch the sensor with an ENROLLED finger.
-Stop ctaphid_serial_bridge.py first: both programs need the token's serial port. Linux, macOS and Windows; stdlib only.
+While ctaphid_serial_bridge.py runs, fpctl.py talks to the token through the bridge's local control port; otherwise
+it opens the serial port itself. Linux, macOS and Windows; stdlib only.
 """
 import argparse
 import os
@@ -18,7 +19,8 @@ import sys
 import time
 
 from serial_frames import Decoder, encode, T_FP
-from serial_link import find_token, open_link
+from control import control_url
+from serial_link import SocketLink, find_token, open_link
 
 OP_STATUS, OP_ENROLL, OP_DELETE, OP_DELETE_ALL, OP_TEST = 1, 2, 3, 4, 5
 PROGRESS = 0x80
@@ -70,9 +72,14 @@ def request(link, req, timeout=120.0):
 
 
 def open_token(args):
+    if not args.port:
+        try:
+            return SocketLink(control_url()), control_url() + " (through the running bridge)"
+        except OSError:
+            pass                              # no bridge running: use the serial port
     port = args.port or find_token(args.baud)
     if not port:
-        sys.exit("no token found (is it plugged in on the native USB port, and is ctaphid_serial_bridge.py stopped?)")
+        sys.exit("no token found (is it plugged in on the native USB port?)")
     try:
         return open_link(port, args.baud), port
     except OSError as e:

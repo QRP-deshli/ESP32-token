@@ -34,6 +34,7 @@ jobs:
           python test_posix_serial.py
           python test_fpctl.py
           python test_bridge_e2e.py
+          python test_control.py
           python test_scripts.py
           python test_setup_scripts.py
       - name: C tests (firmware code)

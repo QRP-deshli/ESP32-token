@@ -24,8 +24,9 @@ import os
 import sys
 import time
 
+from control import ControlServer
 from multiplex import wait_readable
-from serial_frames import Decoder, encode, T_HID, T_PONG, HID_LEN
+from serial_frames import Decoder, encode, T_FP, T_HID, T_PONG, HID_LEN
 from serial_link import list_ports, open_link, probe
 from virtual_hid import HidUnavailable, NullHid, UHID_PATH, open_virtual_hid
 
@@ -39,6 +40,7 @@ class Bridge:
     def __init__(self, args, hid):
         self.args = args
         self.hid = hid
+        self.control = None          # ControlServer: fpctl.py while the bridge runs
         self.ser = None
         self.dec = Decoder()
         self.to_dev = 0
@@ -111,6 +113,8 @@ class Bridge:
                     self.last_touch_keepalive = now
                 self.hid.send_input(data)
                 self.from_dev += 1
+            elif ftype == T_FP and self.control is not None:
+                self.control.send(encode(T_FP, data))    # fingerprint admin reply -> fpctl.py
             elif ftype == T_PONG:
                 pass
 
@@ -123,9 +127,27 @@ class Bridge:
         if chunk:
             self.on_serial_data(chunk)
 
+    def service_control(self):
+        """Forward fingerprint admin requests from fpctl.py to the token. The token answers a request that collides
+        with a CTAPHID one (both need the sensor) with "busy", so CTAPHID traffic is never held back."""
+        if self.control is None:
+            return
+        for payload in self.control.service():
+            if self.ser is None:
+                self.control.disconnect_client()           # fpctl then reports that the token is gone
+                continue
+            try:
+                self.ser.write(encode(T_FP, payload))
+            except (OSError, TimeoutError):
+                self.drop_serial()
+
     def step(self):
         """One turn of the main loop: wait up to 0.5 s for either side, handle what arrived."""
-        ready = wait_readable([self.hid] + ([self.ser] if self.ser is not None else []), 0.5)
+        sources = [self.hid] + ([self.ser] if self.ser is not None else [])
+        if self.control is not None:
+            sources += self.control.selectables()
+        ready = wait_readable(sources, 0.5)
+        self.service_control()
         if ready is not None:
             if self.hid in ready:
                 report = self.hid.poll(0)
@@ -176,6 +198,8 @@ def main():
                     help="virtual HID helper program (default: $PICO_VHID_HELPER; on macOS desktop/mac/vhid/pico-vhid)")
     ap.add_argument("--no-hid", action="store_true",
                     help="create no virtual device, only keep the serial link up (test detection and unplug/replug)")
+    ap.add_argument("--no-control", action="store_true",
+                    help="do not open the local control port that lets fpctl.py work while the bridge runs")
     ap.add_argument("--list", action="store_true", help="probe candidate ports and exit")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
@@ -191,6 +215,12 @@ def main():
     except HidUnavailable as e:
         print(e, file=sys.stderr)
         return 1
+    if not args.no_control:
+        try:
+            bridge.control = ControlServer(log=bridge.vlog)
+            bridge.log(f"fpctl.py can be used while the bridge runs (control port 127.0.0.1:{bridge.control.port})")
+        except OSError as e:
+            bridge.log(f"no control port ({e}); stop the bridge to use fpctl.py")
     try:
         bridge.run()
     except KeyboardInterrupt:
@@ -200,6 +230,8 @@ def main():
         return 1
     finally:
         bridge.hid.close()
+        if bridge.control is not None:
+            bridge.control.close()
     return 0
 
 
