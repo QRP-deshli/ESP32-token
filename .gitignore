@@ -26,3 +26,8 @@ __pycache__/
 # host C test binaries (CI builds them next to the sources)
 /desktop/common/tests/t_fp*
 /desktop/common/tests/t_sp*
+
+# Windows virtual HID driver and helper build output
+/desktop/windows/vhid/driver/x64/
+/desktop/windows/vhid/helper/*.exe
+/desktop/windows/vhid/pico-vhid.exe

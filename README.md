@@ -43,8 +43,8 @@ browser (the firmware refuses on a failed match; check it yourself), resident ke
 | | Linux | macOS | Windows |
 |---|---|---|---|
 | Token detection, `fpctl.py` | tested with the token | implemented, host tests only | implemented, host tests only |
-| Virtual FIDO device | `/dev/uhid`, tested | `desktop/mac/vhid` helper, needs an Apple entitlement | no backend yet (research in `desktop/windows/virtual-hid.md`) |
-| Browser registration | tested (Brave) | not tested | not possible yet |
+| Virtual FIDO device | `/dev/uhid`, tested | `desktop/mac/vhid` helper, needs an Apple entitlement | VHF driver prototype in `desktop/windows/vhid`, never installed |
+| Browser registration | tested (Brave) | not tested | not tested |
 | Helper scripts | `desktop/linux/` | `desktop/mac/` | `desktop/windows/` (PowerShell) |
 | Manual | this README | [desktop/mac/README.md](desktop/mac/README.md) | [desktop/windows/README.md](desktop/windows/README.md) |
 

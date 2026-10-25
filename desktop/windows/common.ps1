@@ -59,10 +59,17 @@ function Invoke-Fpctl {
     try { & $exe @pre .\fpctl.py @Arguments | Out-Host; return $LASTEXITCODE } finally { Pop-Location }
 }
 
-# The virtual HID helper the bridge needs on Windows (see virtual-hid.md); $null when none is configured.
+# The virtual HID helper the bridge needs on Windows (vhid\README.md); $null when none is installed.
+$DefaultVhidHelper = Join-Path $ScriptsDir 'vhid\pico-vhid.exe'
 function Get-VhidHelper {
     if ($env:PICO_VHID_HELPER -and (Test-Path $env:PICO_VHID_HELPER)) { return $env:PICO_VHID_HELPER }
+    if (Test-Path $DefaultVhidHelper) { return $DefaultVhidHelper }
     return $null
+}
+
+function Test-Admin {
+    ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 function Get-BridgeProcess {

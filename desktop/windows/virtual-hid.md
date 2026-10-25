@@ -30,17 +30,15 @@ devices directly. Consequences:
 | 4. Third-party virtual USB / USB-over-IP (usbip-win2, commercial virtual HID drivers) | a generic virtual-device driver someone else signed | installing a third-party kernel driver | small to medium | No own driver, but a dependency on that project's signing and maintenance. usbip-win2 would let the Linux bridge's device be exported over the network instead. |
 | 5. No bridge at all | see `../no-bridge-options.md` | different hardware or BLE | | Removes the problem on every OS. |
 
-## Recommendation
+## Decision
 
-**Option 2 (VHF driver + small user-mode helper)** for a prototype: it gives the same model as Linux (a real HID FIDO
-device), works with every browser through `webauthn.dll`, and test-signing is enough for development. Start from the
-Windows-driver-samples `hid/vhidmini2` (UMDF) or the VHF documentation, and implement the helper protocol in the
-user-mode part. Revisit option 1 once Microsoft's plugin model is generally available, since it would avoid a driver.
+**Option 2: a VHF driver and a small user-mode helper**, prototyped in [vhid/](vhid/README.md). It gives the same model
+as Linux (a real HID FIDO device that exists while the bridge runs), works with every browser through `webauthn.dll`,
+and test-signing is enough for development. Option 1 is worth revisiting once Microsoft's plugin model is generally
+available, since it would avoid a kernel driver; option 5 (`../no-bridge-options.md`) avoids all of this.
 
-Before choosing, also read `../no-bridge-options.md`: an ESP32-S3 (native USB) removes the need for any of this.
+## Prototype status
 
-## Not done yet
-
-- no helper exists; none of the options above was prototyped;
-- install/uninstall steps and admin rights depend on the option (test-signing and driver install need administrator);
-- browser registration on Windows was not tested.
+- `vhid/driver` (KMDF + VHF) and `vhid/helper/pico-vhid.exe` build in CI; install/uninstall scripts exist.
+- **Not installed or run anywhere yet**, and no browser registration was tried: no Windows test machine and no token.
+- Install/uninstall steps and the steps that need administrator rights are in [vhid/README.md](vhid/README.md).

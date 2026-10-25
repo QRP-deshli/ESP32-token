@@ -5,16 +5,20 @@
 #   powershell -ExecutionPolicy Bypass -File desktop\windows\setup-token.ps1
 #
 # Run it with the token plugged into the NATIVE USB port. It stops a running bridge (the bridge and fpctl.py need the
-# same serial port). Options 5 and 6 and the bridge need a virtual HID helper (desktop\windows\virtual-hid.md).
+# same serial port). Options 5 and 6 and the bridge need the virtual HID driver (desktop\windows\vhid\README.md) and an administrator
+# PowerShell.
 . (Join-Path $PSScriptRoot 'common.ps1')
 
 function Need-FidoTools { return (Need-Cmd 'fido2-token' 'libfido2 tools for Windows, see desktop\windows\README.md') }
 
 function Need-Helper {
-    if (Get-VhidHelper) { return $true }
-    Bad 'no virtual HID helper configured (PICO_VHID_HELPER), so this needs the bridge and is not available yet.'
-    Info 'See desktop\windows\virtual-hid.md.'
-    return $false
+    if (-not (Get-VhidHelper)) {
+        Bad 'the virtual HID driver and helper are not installed, and this needs the bridge.'
+        Info 'See desktop\windows\vhid\README.md.'
+        return $false
+    }
+    if (-not (Test-Admin)) { Bad 'this needs an administrator PowerShell (bridge and fido2-token).'; return $false }
+    return $true
 }
 
 function Show-State { Update-State | Out-Null; Show-StateLine }

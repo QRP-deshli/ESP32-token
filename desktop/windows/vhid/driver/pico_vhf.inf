@@ -1,0 +1,61 @@
+;
+; pico_vhf.inf - virtual FIDO HID device for the ESP32-token serial bridge (VHF source driver, root-enumerated).
+; Installed by ..\install.ps1 as the device Root\PicoVhf; vhf.sys is its lower filter.
+;
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = HIDClass
+ClassGuid   = {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Provider    = %ProviderName%
+CatalogFile = pico_vhf.cat
+DriverVer   = 10/25/2026,0.1.0.0
+PnpLockdown = 1
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+pico_vhf.sys = 1,,
+
+[Manufacturer]
+%ProviderName% = PicoVhf,NT$ARCH$.10.0...16299
+
+[PicoVhf.NT$ARCH$.10.0...16299]
+%DeviceDesc% = PicoVhf_Device, Root\PicoVhf
+
+[PicoVhf_Device.NT]
+CopyFiles = PicoVhf_CopyFiles
+
+[PicoVhf_CopyFiles]
+pico_vhf.sys
+
+[PicoVhf_Device.NT.HW]
+AddReg = PicoVhf_AddReg
+
+[PicoVhf_AddReg]
+HKR,,"LowerFilters",0x00010000,"vhf"
+
+[PicoVhf_Device.NT.Services]
+AddService = pico_vhf,0x00000002,PicoVhf_Service
+
+[PicoVhf_Service]
+DisplayName   = %ServiceDesc%
+ServiceType   = 1               ; SERVICE_KERNEL_DRIVER
+StartType     = 3               ; SERVICE_DEMAND_START
+ErrorControl  = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary = %13%\pico_vhf.sys
+
+[PicoVhf_Device.NT.Wdf]
+KmdfService = pico_vhf, PicoVhf_WdfSection
+
+[PicoVhf_WdfSection]
+KmdfLibraryVersion = $KMDFVERSION$
+
+[Strings]
+ProviderName = "ESP32-token"
+DiskName     = "ESP32-token virtual HID driver"
+DeviceDesc   = "Pico FIDO2 virtual HID source (serial bridge)"
+ServiceDesc  = "Pico FIDO2 virtual HID source"

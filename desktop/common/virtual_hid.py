@@ -51,7 +51,9 @@ FIDO_REPORT_DESC = bytes([
 ])
 REPORT_LEN = 64
 UHID_PATH = "/dev/uhid"
-MAC_HELPER = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "mac", "vhid", "pico-vhid"))
+_DESKTOP = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+MAC_HELPER = os.path.normpath(os.path.join(_DESKTOP, "mac", "vhid", "pico-vhid"))
+WIN_HELPER = os.path.normpath(os.path.join(_DESKTOP, "windows", "vhid", "pico-vhid.exe"))
 
 
 class HidUnavailable(Exception):
@@ -235,5 +237,10 @@ def open_virtual_hid(helper=None, uhid_path=UHID_PATH, log=None):
             raise HidUnavailable(f"the macOS virtual HID helper is not built ({MAC_HELPER}).\n"
                                  "Build it with desktop/mac/vhid/build.sh (see desktop/mac/README.md).")
         return HelperProcessHid([MAC_HELPER], log)
-    raise HidUnavailable("this OS has no built-in virtual HID backend. On Windows pass --helper with a virtual HID helper\n"
-                         "(see desktop/windows/virtual-hid.md). fpctl.py works without the bridge.")
+    if os.name == "nt":
+        if not os.path.isfile(WIN_HELPER):
+            raise HidUnavailable(f"the Windows virtual HID helper is not installed ({WIN_HELPER}).\n"
+                                 "See desktop/windows/vhid/README.md (driver + helper, administrator rights).\n"
+                                 "fpctl.py works without the bridge.")
+        return HelperProcessHid([WIN_HELPER], log)
+    raise HidUnavailable("this OS has no built-in virtual HID backend; pass --helper with a virtual HID helper.")
