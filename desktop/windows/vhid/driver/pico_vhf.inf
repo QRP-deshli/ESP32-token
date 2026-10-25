@@ -37,6 +37,7 @@ AddReg = PicoVhf_AddReg
 
 [PicoVhf_AddReg]
 HKR,,"LowerFilters",0x00010000,"vhf"
+HKR,,Security,,"D:P(A;;GA;;;SY)(A;;GA;;;BA)"      ; SYSTEM and administrators only
 
 [PicoVhf_Device.NT.Services]
 AddService = pico_vhf,0x00000002,PicoVhf_Service

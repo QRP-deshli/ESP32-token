@@ -14,6 +14,7 @@
  *   cl /O2 pico-vhid.c setupapi.lib                         (MSVC)
  */
 #include <windows.h>
+#include <winioctl.h>     /* CTL_CODE (MinGW does not always pull it in through windows.h) */
 #include <initguid.h>
 #include <setupapi.h>
 #include <stdarg.h>
@@ -52,7 +53,7 @@ static char *find_device(void)
         SetupDiGetDeviceInterfaceDetailA(set, &ifd, NULL, 0, &need, NULL);
         detail = (SP_DEVICE_INTERFACE_DETAIL_DATA_A *)malloc(need);
         if (detail) {
-            detail->cbSize = sizeof(*detail);
+            detail->cbSize = (sizeof(void *) == 8) ? 8 : 5;   /* the documented value; sizeof() depends on struct packing */
             if (SetupDiGetDeviceInterfaceDetailA(set, &ifd, detail, need, NULL, NULL))
                 path = _strdup(detail->DevicePath);
             free(detail);
@@ -130,7 +131,7 @@ int main(int argc, char **argv)
 
     path = find_device();
     if (!path) {
-        logmsg("the pico_vhf driver is not installed (run desktop\\windows\\vhid\\install.ps1 as administrator)");
+        logmsg("the pico_vhf driver is not installed (run desktop\\windows\\vhid\\install.cmd as administrator)");
         return 1;
     }
     dev = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);

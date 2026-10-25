@@ -204,15 +204,13 @@ NTSTATUS PicoEvtDeviceAdd(WDFDRIVER driver, PWDFDEVICE_INIT init)
     WDF_OBJECT_ATTRIBUTES attrs;
     WDF_FILEOBJECT_CONFIG fileCfg;
     WDF_IO_QUEUE_CONFIG qcfg;
-    DECLARE_CONST_UNICODE_STRING(sddl, L"D:P(A;;GA;;;SY)(A;;GA;;;BA)");   /* SYSTEM and administrators only */
     WDFDEVICE device;
     PDEVICE_CONTEXT ctx;
     NTSTATUS st;
     UNREFERENCED_PARAMETER(driver);
 
-    st = WdfDeviceInitAssignSDDLString(init, &sddl);
-    if (!NT_SUCCESS(st))
-        return st;
+    /* Access is limited to SYSTEM and administrators by the "Security" value in pico_vhf.inf (HKR,,Security), not
+       here: WdfDeviceInitAssignSDDLString made the device fail to start with 0xC0000079 (invalid security descriptor). */
     WdfDeviceInitSetExclusive(init, TRUE);                  /* one bridge at a time */
     WDF_FILEOBJECT_CONFIG_INIT(&fileCfg, WDF_NO_EVENT_CALLBACK, WDF_NO_EVENT_CALLBACK, PicoEvtFileCleanup);
     WdfDeviceInitSetFileObjectConfig(init, &fileCfg, WDF_NO_OBJECT_ATTRIBUTES);
