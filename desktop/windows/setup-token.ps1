@@ -124,9 +124,9 @@ function Reset-Flow {
     if (-not (Bridge-Up)) { return }
     $base = Get-TokenConnCount
     Write-Host ''
-    Write-Host 'Now UNPLUG the token''s USB cable, plug it back in, wait about 3 seconds, then press Enter.'
-    Read-Host | Out-Null
-    if (-not (Wait-ConnGt $base 8)) { Bad 'the bridge did not see the token come back'; Stop-Bridge; return }
+    # no Enter to press: the script notices the replug itself, so none of the 10 seconds is lost waiting for a key
+    Write-Host 'Now UNPLUG the token''s USB cable and plug it back in (within 60 seconds).'
+    if (-not (Wait-ConnGt $base 60)) { Bad 'the bridge did not see the token come back'; Stop-Bridge; return }
     $dev = Wait-Hid 5
     if (-not $dev) { Bad 'no virtual FIDO device appeared'; Stop-Bridge; return }
     Write-Host 'Touch the sensor with an ENROLLED finger now ...'

@@ -120,9 +120,9 @@ reset_flow() {
     local base dev rc
     base="$(token_conn_count)"
     echo
-    echo "Now UNPLUG the token's USB cable, plug it back in, wait about 3 seconds, then press Enter."
-    read -r _ || { stop_bridge; return; }
-    if ! wait_conn_gt "$base" 8; then
+    # no Enter to press: the script notices the replug itself, so none of the 10 seconds is lost waiting for a key
+    echo "Now UNPLUG the token's USB cable and plug it back in (within 60 seconds)."
+    if ! wait_conn_gt "$base" 60; then
         bad "the bridge did not see the token come back"; stop_bridge; return
     fi
     dev="$(wait_hid 5)" || { bad "no virtual FIDO device appeared"; stop_bridge; return; }
