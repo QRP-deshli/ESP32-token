@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Runs this OS's check-token script (desktop/linux, desktop/mac or desktop/windows) against a fake token over TCP."""
-import os, shutil, subprocess, sys
+import os, subprocess, sys
 
 from fake_token import FakeToken, Checker
 
@@ -13,8 +13,7 @@ def handler(t, d, send):
         send(0x30, bytes([1, 0, 0, 2]))           # status: sensor OK, 2 fingers
 
 if os.name == "nt":
-    shell = shutil.which("pwsh") or shutil.which("powershell")
-    cmd = [shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", os.path.join(desktop, "windows", "check-token.ps1")]
+    cmd = ["cmd.exe", "/d", "/c", os.path.join(desktop, "windows", "check-token.cmd")]
 elif sys.platform == "darwin":
     cmd = ["/bin/bash", os.path.join(desktop, "mac", "check-token.sh")]          # the system bash 3.2
 else:
