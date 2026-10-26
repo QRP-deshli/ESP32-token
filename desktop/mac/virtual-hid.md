@@ -1,5 +1,9 @@
 # macOS: virtual FIDO device
 
+> **Status: concept.** Not pursued for now: the entitlement below needs a paid Apple Developer Program membership and
+> Apple's approval, which the project does not have. Checked on 2026-10-26 on macOS 27 with the token plugged in: the
+> serial side works, `pico-vhid --check` refuses with `cannot create the virtual HID device` (no signing identity).
+
 Linux creates the virtual FIDO device through `/dev/uhid`. macOS has no such file; a user program can create a virtual
 HID device only through Apple's APIs, and those need an entitlement.
 
@@ -65,11 +69,6 @@ What was tested on macOS 27 (Apple silicon), without the token:
    `build.sh` reads the App ID from the profile, writes `PicoVHID.app/Contents/Info.plist` with that bundle identifier,
    embeds the profile, signs the bundle with the entitlement and links `pico-vhid` into it (the bridge's default path).
    A bare binary signed with the entitlement but without a profile is killed by macOS at start (exit 137).
-
-For local development only, the entitlement check can be relaxed by disabling System Integrity Protection and AMFI
-(`csrutil disable` in Recovery, then `sudo nvram boot-args="amfi_get_out_of_my_way=1"`). **This removes important
-protections from the whole Mac**; do it only on a test machine and undo it afterwards (`csrutil enable`,
-`sudo nvram -d boot-args`).
 
 ## Removing it
 

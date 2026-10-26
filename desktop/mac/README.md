@@ -1,5 +1,11 @@
 # macOS
 
+> **Conceptual only, not pursued for now.** A virtual HID device on macOS needs Apple's restricted entitlement
+> `com.apple.developer.hid.virtual.device`, which comes only with a paid Apple Developer Program membership and Apple's
+> approval of the capability (see [virtual-hid.md](virtual-hid.md)). Without it the bridge cannot expose the token to
+> browsers, so the macOS path cannot be verified end to end. The code and scripts stay in the repository as a concept
+> for whoever has such an account; use the token on Linux or Windows.
+
 From a fresh Mac to a registration in the browser. The top-level `README.md` explains the hardware and wiring (Part A
 steps 1–2); this page replaces its Linux-specific steps.
 
@@ -7,13 +13,13 @@ steps 1–2); this page replaces its Linux-specific steps.
 
 | Part | Status |
 |---|---|
-| Serial link, token detection (`/dev/cu.usbmodem*`), exclusive open, unplug/replug | implemented, host tests on a pty pass on macOS; **not tested with the token** |
-| `fpctl.py` (status, enroll, test, delete), also while the bridge runs | implemented, host tests pass; **not tested with the token** |
-| Virtual FIDO device (`vhid/pico-vhid`) | implemented and builds; runs only with Apple's HID entitlement, see [virtual-hid.md](virtual-hid.md); **never created a device** |
+| Serial link, token detection (`/dev/cu.usbmodem*`) | **tested with the token** (macOS 27, Apple silicon): `--list` finds `/dev/cu.usbmodem2101 -> token`, `--no-hid` connects; unplug/replug not tried |
+| `fpctl.py status` | **tested with the token**: `sensor OK, 1 fingerprint(s) enrolled`; enroll/test/delete not tried on macOS |
+| Virtual FIDO device (`vhid/pico-vhid`) | implemented and builds; runs only with Apple's HID entitlement, see [virtual-hid.md](virtual-hid.md); **never created a device** (no Apple Developer account) |
 | Helper scripts | `setup-token.sh`, `check-token.sh`, `start-bridge.sh` (bash 3.2), run in CI against a fake token |
-| Browser registration (Chrome, Safari) | **not tested** |
+| Browser registration (Chrome, Safari) | **not tested**, blocked by the virtual device |
 
-Nothing on this page was run with the real token yet. Steps marked *(to verify)* are expected behaviour, not observed.
+Only the serial side was run with the real token. Steps marked *(to verify)* are expected behaviour, not observed.
 
 | File | Purpose |
 |---|---|
@@ -27,7 +33,7 @@ Nothing on this page was run with the real token yet. Steps marked *(to verify)*
 ## From a fresh Mac
 
 1. **Tools.** Xcode command line tools (`xcode-select --install`), Python 3 (the system `python3` or
-   `brew install python`), and for the command-line FIDO checks `brew install libfido2` (`fido2-token`, `fido2-cred`).
+   `brew install python`; standard library only, no `pyserial`), and for the command-line FIDO checks `brew install libfido2` (`fido2-token`, `fido2-cred`).
 2. **ESP-IDF v5.5.** Espressif's Get Started guide for ESP32-C6, "Linux and macOS": `brew install cmake ninja dfu-util`,
    clone ESP-IDF v5.5, `./install.sh esp32c6`, `. ./export.sh`. Build exactly as in the top-level README step 3.
 3. **Flash** through the board's **UART** port, as on Linux (top-level README step 4):
