@@ -6,16 +6,17 @@ It is a port of [pico-fido2](https://github.com/polhenarejos/pico-fido2) (see `N
 ```
 Browser / libfido2  --HID--  serial bridge (PC)        --USB serial--  ESP32-C6 token  --UART--  fingerprint sensor
                               virtual FIDO HID device                  keys + signing           matches fingers itself
-                              (Linux uhid, macOS helper,
-                               Windows driver prototype)
+                              (Linux uhid, Windows VHF
+                               driver; macOS: concept)
 ```
 
 The ESP32-C6 has no USB device controller, so it cannot be a USB HID key by itself. The firmware talks CTAPHID over
 the C6's native USB port (a serial port: `/dev/ttyACM0` on Linux, `/dev/cu.usbmodem…` on macOS, `COMn` on Windows) and
 a small Python program on the PC (`desktop/`) turns that into a virtual USB HID FIDO device. **The bridge must run on
-every PC where you use the token.** Linux works and was tested with the hardware; the macOS and Windows code is written
-and tested in CI without hardware, see [Operating systems](#operating-systems). This manual is written for Linux; macOS
-and Windows have their own guides.
+every PC where you use the token.** Linux and Windows work and were tested with the hardware; macOS is a concept only
+(it needs an Apple entitlement), see [Operating systems](#operating-systems). This manual covers Linux and Windows:
+where the two differ, each step shows both. The Windows driver installation has its own guide,
+[desktop/windows/README.md](desktop/windows/README.md).
 
 ## What is stored where
 
@@ -32,36 +33,42 @@ Fingerprints are lost only by `fpctl.py delete` / `delete-all`.
 ## Status
 
 Tested on a real ESP32-C6-DevKitC-1 with a Waveshare-style UART capacitive fingerprint module (pins VIN, GND, TX,
-RX, IRQ, EN), ESP-IDF v5.5, Ubuntu, Brave:
+RX, IRQ, EN), ESP-IDF v5.5, on Ubuntu (Brave) and on Windows 10/11:
 
 - build, flash, first boot, fingerprint enrolment, finger test (`fpctl.py`)
 - `fido2-token -I`, registration and login with `fido2-cred` / `fido2-assert` (both ask for the finger)
-- registration and login on the [Token2 FIDO2 demo](https://www.token2.com/tools/fido2-demo) in Brave, with a PIN set
+- registration and login on the [Token2 FIDO2 demo](https://www.token2.com/tools/fido2-demo) in a browser, with a PIN
+  set (Brave on Ubuntu; on Windows through the test-signed VHF driver)
 
-**Not tested:** other websites, Firefox/Chrome (a browser installed as a snap or flatpak may be sandboxed from
-`/dev/hidraw*`), other fingerprint module models, macOS and Windows with the real token, and a stranger's finger being refused in the
+**Not tested:** other websites, other fingerprint module models, macOS beyond the serial side, and a stranger's finger being refused in the
 browser (the firmware refuses on a failed match; check it yourself), resident keys/passkeys beyond the demo.
+
+**Does not work:** Firefox and Chrome/Chromium on Ubuntu installed as a snap or flatpak (Ubuntu's default Firefox is a
+snap). Their sandbox does not let them open the bridge's `/dev/hidraw*` device. Use a browser from a `.deb` package
+(for example Brave).
 
 ### Operating systems
 
 | | Linux | macOS | Windows |
 |---|---|---|---|
-| Token detection, `fpctl.py` | tested with the token | implemented, host tests only | implemented, host tests only |
-| Virtual FIDO device | `/dev/uhid`, tested | `desktop/mac/vhid` helper, needs an Apple entitlement | VHF driver prototype in `desktop/windows/vhid`, never installed |
-| Browser registration | tested (Brave) | not tested | not tested |
-| Helper scripts | `desktop/linux/` | `desktop/mac/` | `desktop/windows/` (PowerShell) |
-| Manual | this README | [desktop/mac/README.md](desktop/mac/README.md) | [desktop/windows/README.md](desktop/windows/README.md) |
+| Status | **works** | **concept only** | **works** |
+| Token detection, `fpctl.py` | tested with the token | tested with the token (`--list`, `fpctl.py status`) | tested with the token |
+| Virtual FIDO device | `/dev/uhid`, tested | `desktop/mac/vhid` helper, needs Apple's HID entitlement (paid developer account), never created a device | test-signed VHF driver `desktop/windows/vhid`, tested |
+| Browser registration | tested (Brave) | not possible without the virtual device | tested |
+| Helper scripts | `desktop/linux/` (bash) | `desktop/mac/` (bash 3.2) | `desktop/windows/` (`.cmd`) |
+| Manual | this README | [desktop/mac/README.md](desktop/mac/README.md) | this README + [desktop/windows/README.md](desktop/windows/README.md) (driver) |
 
-"Host tests only" means the code runs in CI on that OS against a fake token, not against the real hardware.
+All three run the host tests in CI against a fake token. macOS stays a concept until someone with an Apple Developer
+account gets the entitlement ([desktop/mac/virtual-hid.md](desktop/mac/virtual-hid.md)).
 
 What was tested where, with the real token:
 
 | OS | Browser / tool | Result |
 |---|---|---|
 | Ubuntu | Brave (deb), `fido2-token`, `fido2-cred`, `fido2-assert` | registration and login with PIN and fingerprint work |
-| Ubuntu | Firefox, Chrome, snap/flatpak browsers | not tested |
-| macOS | any | not tested (the virtual device needs Apple's HID entitlement) |
-| Windows | any | not tested (the virtual device driver was never installed) |
+| Ubuntu | Firefox, Chrome (snap/flatpak) | does not work: the sandbox blocks access to `/dev/hidraw*` |
+| Windows 10/11 | browser, `fido2-token` (administrator prompt) | driver installed, bridge creates `1d50:619b`, registration and login with PIN and fingerprint work |
+| macOS 27 | `ctaphid_serial_bridge.py --list`, `fpctl.py status` | serial side works; no virtual device without Apple's HID entitlement |
 
 **Not a hardened token.** Flash encryption and secure boot are off. Anyone holding the board can read its flash, and the
 fingerprint is a gate (user presence), not part of the key material. See [Security notes](#security-notes).
@@ -74,10 +81,17 @@ fingerprint is a gate (user presence), not part of the key material. See [Securi
 
 - **ESP32-C6-DevKitC-1** (two USB-C ports: *UART* for flashing and logs, *USB* = native, used as the token link), 4 MB flash or more.
 - **Fingerprint module**, 3.3 V, UART, speaking the Waveshare *UART Fingerprint Sensor (D)* command set, plus jumper wires.
-- **Two USB-C cables** and a **Linux PC** with Python 3 and the `uhid` kernel module (for macOS and Windows see [Operating systems](#operating-systems)).
-- **ESP-IDF v5.5** ([install guide](https://docs.espressif.com/projects/esp-idf/en/v5.5/esp32c6/get-started/)); run `./install.sh esp32c6`.
+- **Two USB-C cables** (data, not charge-only).
+- **A PC** with Python 3 (standard library only, no extra packages):
+  - **Linux:** the `uhid` kernel module (present on Ubuntu).
+  - **Windows 10/11 x64:** the virtual HID driver, built and installed once as in
+    [desktop/windows/README.md](desktop/windows/README.md) sections 1–3 (MinGW, Visual Studio, SDK + WDK, test-signing
+    mode, so Secure Boot must be off).
+- **ESP-IDF v5.5** ([install guide](https://docs.espressif.com/projects/esp-idf/en/v5.5/esp32c6/get-started/)); Linux:
+  `./install.sh esp32c6`; Windows: Espressif's "ESP-IDF Tools Installer".
 - Internet during the first build (the ESP-IDF component manager downloads `zorxx/neopixel`).
-- `fido2-tools` for command-line tests: `sudo apt install fido2-tools`.
+- libfido2 tools for command-line tests: Linux `sudo apt install fido2-tools`; Windows: the libfido2 release zip,
+  folder with `fido2-token.exe` on PATH.
 
 ## 2. Wiring
 
@@ -102,6 +116,8 @@ Use the labels printed on your module, not wire colours. TX and RX cross over.
 
 ## 3. Build
 
+Linux (on Windows use the "ESP-IDF PowerShell" or "ESP-IDF CMD" shortcut instead of `export.sh`):
+
 ```sh
 . ~/esp/esp-idf/export.sh
 cd pico-fido2-esp32c6
@@ -119,18 +135,25 @@ idf.py build
 Plug a cable into the **UART** port.
 
 ```sh
+# Linux
 sudo usermod -aG dialout $USER        # once, then log out and in
 idf.py -p /dev/ttyUSB0 flash monitor
+
+# Windows (the UART chip shows as COMn in Device Manager, "Ports (COM & LPT)")
+idf.py -p COM5 flash monitor
 ```
 
 - The first boot **burns eFuse KEY3/KEY4: irreversible, once per chip.** Later flashes reuse them.
 - The monitor should print `fingerprint: sensor ready, N enrolled`. `UART setup failed` means a driver/pin problem;
   `sensor silent` means wiring (step 2). Leave the monitor with Ctrl+].
-- The port name may differ: `ls /dev/ttyUSB* /dev/ttyACM*`.
+- The port name may differ: Linux `ls /dev/ttyUSB* /dev/ttyACM*`; Windows: Device Manager.
 
 ## 5. Enrol a fingerprint
 
-Plug the second cable into the **native USB** port (appears as `/dev/ttyACM0`). The bridge must be **stopped** for this step.
+Plug the second cable into the **native USB** port (Linux `/dev/ttyACM0`, Windows "USB Serial Device (COMn)"). The
+bridge must be **stopped** for this step.
+
+Linux:
 
 ```sh
 sudo systemctl stop ModemManager
@@ -142,12 +165,25 @@ cd desktop/common
 ./fpctl.py test                       # "finger recognised (id 1)"
 ```
 
+Windows (normal prompt, no administrator needed):
+
+```
+cd desktop\common
+py -3 ctaphid_serial_bridge.py --list     the token's COM port, marked "-> token"
+py -3 fpctl.py status
+py -3 fpctl.py enroll
+py -3 fpctl.py test
+```
+
 The first finger needs no authorisation; every later enrol/delete needs a touch with an already enrolled finger.
 **Enrol a second finger as a backup.** The sensor holds a limited number of fingers.
 
-Prefer a guided version? `desktop/linux/setup-token.sh` does these checks and the enrolment interactively (see [Helper scripts](#helper-scripts)).
+Prefer a guided version? `desktop/linux/setup-token.sh` or `desktop\windows\setup-token.cmd` does these checks and the
+enrolment interactively (see [Helper scripts](#helper-scripts)).
 
 ## 6. Start the bridge
+
+Linux:
 
 ```sh
 cd desktop/common
@@ -161,12 +197,23 @@ fido2-token -L                        # lists /dev/hidrawN
 fido2-token -I /dev/hidrawN           # token info (add sudo if you have not done step 8)
 ```
 
+Windows (administrator prompt, the driver must be installed):
+
+```
+desktop\windows\start-bridge.cmd -v      leave this window open
+```
+
+It must print `token on COMn` and `virtual FIDO device 1d50:619b created`. In another **administrator** prompt,
+`fido2-token -L` lists a `\\?\hid#...` path (a normal prompt shows only `windows://hello`); use it with `fido2-token -I`.
+
 The bridge prints `>>> TOUCH THE FINGERPRINT SENSOR NOW <<<` whenever the token waits for your finger. The command-line
 tools print nothing while they wait, so keep this window visible.
 
 ## 7. Register and log in from the command line
 
 Replace `hidrawN`. Each step waits for your finger (about 15 seconds). If a PIN is set, the tools should ask for it.
+The commands are for a Linux shell; on Windows run the same `fido2-cred` / `fido2-assert` calls in an administrator
+prompt with the `\\?\hid#...` path (or in Git Bash/WSL for `openssl`), or simply test in the browser (step 8).
 
 ```sh
 # register
@@ -189,7 +236,10 @@ finger that is not enrolled): it must fail with `FIDO_ERR_OPERATION_DENIED` afte
 
 ## 8. Browsers
 
-Browsers run as your normal user and cannot open the root-only `/dev/hidrawN` the bridge creates. Install the udev
+**Windows:** nothing to set up. Edge, Chrome and Firefox reach the key through Windows' WebAuthn service; the browser
+itself runs as a normal user, only the bridge needs administrator rights. Continue with the numbered list below.
+
+**Linux:** browsers run as your normal user and cannot open the root-only `/dev/hidrawN` the bridge creates. Install the udev
 rule once, then restart the bridge (the device node is created when the bridge starts):
 
 ```sh
@@ -205,8 +255,8 @@ Then open a WebAuthn site (for example the Token2 demo above), click register, a
    (yet) tell browsers that the fingerprint counts as user verification. Choose a PIN of at least 4 characters.
 2. When the bridge prints the touch message, touch the sensor within 15 seconds.
 
-Tested in Brave (deb package). To see why a browser fails, open `brave://device-log` (`chrome://device-log`) and
-reload it after clicking register.
+Tested in Brave (deb package) on Linux and in a browser on Windows. To see why a Chromium browser fails, open
+`brave://device-log` (`chrome://device-log`, `edge://device-log`) and reload it after clicking register.
 
 ## 9. Troubleshooting
 
@@ -218,15 +268,18 @@ reload it after clicking register.
 | Port busy, `/dev/ttyACM0` keeps disappearing | `sudo systemctl stop ModemManager` |
 | Permission denied on `/dev/ttyUSB0` | You are not in the `dialout` group yet |
 | Everything refused, no touch prompt | No finger enrolled, or sensor not wired |
-| Browser says "Touch your security key" forever, the bridge shows **no** `host->token` lines | The browser cannot open the device: udev rule missing (step 8), or a sandboxed (snap/flatpak) browser |
+| Browser says "Touch your security key" forever, the bridge shows **no** `host->token` lines | The browser cannot open the device: udev rule missing (step 8), or a snap/flatpak browser (its sandbox blocks `/dev/hidraw*`; use a `.deb` browser) |
 | `FIDO_ERR_OPERATION_DENIED` | The finger was not recognised within the timeout, or no touch happened |
 | Token reboots with `Guru Meditation Error` | Firmware bug: keep the backtrace line (file and line number) and open an issue |
 | Browser asks to set a PIN | Expected, see step 8 |
+| Windows: `the pico_vhf driver is not installed`, `needs an administrator Command Prompt`, device with a yellow mark | See the troubleshooting table in [desktop/windows/README.md](desktop/windows/README.md) |
 
 ## 10. Things not to do
 
 - **Do not run `idf.py erase-flash`.** It wipes the token's identity; accounts you registered stop working.
 - **Do not run `fido2-token -R`** (FIDO reset): same effect.
+- **Windows:** test-signing mode lowers the driver-signature protection of the whole PC; turn it off with
+  `desktop\windows\vhid\uninstall.cmd` when you stop using the token.
 - **Do not forget your PIN.** After 8 wrong tries it blocks, and the only way out is the reset above, which also needs your finger.
 - Re-flashing with plain `idf.py flash` is safe: keys, credentials and fingerprints are kept.
 - `fpctl.py` may run while the bridge runs: it then goes through the bridge's local control port (127.0.0.1:47731).
@@ -239,11 +292,12 @@ reload it after clicking register.
 1. **Plug the cable into the native USB port.** It powers the board. If the board does not start, also plug the UART port
    (only needed for flashing and logs).
 2. **Wait about 3 seconds** for it to boot.
-3. **After every PC reboot, run once:** `sudo systemctl stop ModemManager` and `sudo modprobe uhid`
-   (skip this if you use `desktop/linux/start-bridge.sh` in step 4, it does both).
+3. **Linux only, after every PC reboot, run once:** `sudo systemctl stop ModemManager` and `sudo modprobe uhid`
+   (skip this if you use `desktop/linux/start-bridge.sh` in step 4, it does both). Windows needs nothing here.
 4. **Start the bridge and leave the terminal open:**
    ```sh
-   desktop/linux/start-bridge.sh    # or: cd desktop/common && sudo ./ctaphid_serial_bridge.py
+   desktop/linux/start-bridge.sh       # Linux, or: cd desktop/common && sudo ./ctaphid_serial_bridge.py
+   desktop\windows\start-bridge.cmd    # Windows, administrator prompt
    ```
 5. **Use your browser.** Enter the PIN if asked, and touch the fingerprint sensor when the bridge prints
    `>>> TOUCH THE FINGERPRINT SENSOR NOW <<<` (within 15 seconds).
@@ -255,22 +309,23 @@ Only enrolled fingers work, and the sensor decides; add or remove fingers with `
 
 ## Helper scripts
 
-Three scripts in `desktop/linux/` (bash, they ask for your sudo password) wrap the steps above. `desktop/mac/` (bash 3.2, no
-sudo) and `desktop/windows/` (PowerShell) have the same three scripts with the same menu.
+Three scripts wrap the steps above, with the same menu on every OS: `desktop/linux/*.sh` (bash, they ask for your sudo
+password), `desktop/windows/*.cmd` (bridge and FIDO options need an administrator prompt) and, as a concept,
+`desktop/mac/*.sh` (bash 3.2).
 
-| Script | What it does |
+| Script (Linux / Windows) | What it does |
 |---|---|
-| `desktop/linux/setup-token.sh` | Interactive. Stops a running bridge, shows what the token already has (sensor, number of enrolled fingers), then a menu: enrol a finger (the first one, or another), test a finger, delete one or all fingers, initialise the token's keys, create a **new token identity** (FIDO reset), start the bridge. |
-| `desktop/linux/check-token.sh` | Read-only status: uhid, udev rule, ModemManager, token found, sensor answers, number of fingers, PIN set or not (when the bridge runs). Exit code 0 = ready, 1 = something is missing. |
-| `desktop/linux/start-bridge.sh` | Only starts the bridge (after stopping ModemManager and loading `uhid`). Leave it open; Ctrl+C stops it. |
+| `setup-token.sh` / `setup-token.cmd` | Interactive. Stops a running bridge, shows what the token already has (sensor, number of enrolled fingers), then a menu: enrol a finger (the first one, or another), test a finger, delete one or all fingers, initialise the token's keys, create a **new token identity** (FIDO reset), start the bridge. |
+| `check-token.sh` / `check-token.cmd` | Read-only status: Linux uhid, udev rule, ModemManager; Windows driver installed; token found, sensor answers, number of fingers, PIN set or not (when the bridge runs). Exit code 0 = ready, 1 = something is missing. |
+| `start-bridge.sh` / `start-bridge.cmd` | Only starts the bridge (Linux: after stopping ModemManager and loading `uhid`). Leave it open; Ctrl+C stops it. |
 
 About "generating a token": the token creates its keys by itself the first time it receives a FIDO message, and keeps them
 (see *What is stored where*). The menu option "Initialise the token's keys" just sends that first message, so it is safe to
 repeat. Creating a **new** identity is the FIDO reset: it erases all registered accounts and the PIN, so the script makes you
 type `RESET`, and the token only accepts it within 10 seconds after power-up (the script walks you through the replug).
-Fingerprints are never touched by a reset. Only the enrolling, testing and deleting of fingers, the bridge start and the
-status check were exercised on hardware by the flows in Part A; the scripts themselves were tested against a simulated
-token on a PC, not yet on the real board.
+Fingerprints are never touched by a reset. The Windows `.cmd` scripts were used with the real token; the Linux scripts were
+tested against a simulated token, while the flows they wrap (enrolling, testing and deleting fingers, the bridge start,
+the status check) were exercised on hardware as in Part A.
 
 ---
 
@@ -288,7 +343,9 @@ token on a PC, not yet on the real board.
 
 - Report the fingerprint as built-in user verification so browsers do not ask for a PIN.
 - Flash encryption + secure boot.
-- Start the bridge as a systemd service; Windows/macOS bridge.
+- Start the bridge as a systemd service / Windows service.
+- macOS: get Apple's HID entitlement (paid developer account) and verify the existing helper.
+- A properly signed Windows driver (EV certificate, Microsoft attestation), so test-signing mode is not needed.
 - A board with native USB device support (for example ESP32-S3) would not need the bridge.
 
 ## Repository layout
@@ -296,7 +353,7 @@ token on a PC, not yet on the real board.
 - `CMakeLists.txt`, `sdkconfig.defaults` (single C6 config), `src/fido2/`
 - `pico-keys-sdk/src/usb/serial/` serial framing and transport; `pico-keys-sdk/src/fingerprint/` sensor code
 - `pico-fido/src`, `pico-openpgp/src`, `pico-keys-sdk/{src,config,cmake,mlkem,tinycbor}`: upstream code the build uses
-- `desktop/`: everything that runs on the PC: `common/` (bridge, `fpctl.py`, host tests), `linux/` (scripts, udev rule), `mac/` (scripts, virtual HID helper), `windows/` (PowerShell scripts, virtual HID research), `issues/` (GitHub issues for the Windows/macOS work)
+- `desktop/`: everything that runs on the PC: `common/` (bridge, `fpctl.py`, host tests), `linux/` (scripts, udev rule), `mac/` (scripts, virtual HID helper; concept), `windows/` (`.cmd` scripts, VHF driver, helper and installer), `issues/` (GitHub issues for the Windows/macOS work)
 - `CHANGES.md` (what differs from upstream), `NOTICE.md` (credits and licenses)
 
 ## Host tests (no hardware)
