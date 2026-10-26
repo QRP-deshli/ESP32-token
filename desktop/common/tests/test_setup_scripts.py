@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Drives this OS's setup-token script (desktop/linux, desktop/mac or desktop/windows) through its menu against a fake
 token over TCP: enrol, test, delete one, delete all, quit. Typed answers come from stdin."""
-import os, shutil, subprocess, sys
+import os, subprocess, sys, tempfile
 
 from fake_token import FakeToken, Checker
 
@@ -37,8 +37,7 @@ def handler(t, d, send):
 
 
 if os.name == "nt":
-    shell = shutil.which("pwsh") or shutil.which("powershell")
-    cmd = [shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", os.path.join(desktop, "windows", "setup-token.ps1")]
+    cmd = ["cmd.exe", "/d", "/c", os.path.join(desktop, "windows", "setup-token.cmd")]
 elif sys.platform == "darwin":
     cmd = ["/bin/bash", os.path.join(desktop, "mac", "setup-token.sh")]
 else:
@@ -48,12 +47,17 @@ answers = "\n".join([
     "1", "y",          # enrol another finger (one is enrolled) -> yes
     "2",               # test a finger
     "3", "1", "y",     # delete finger 1, confirm
-    "4", "yes",        # delete all (fpctl asks for 'yes')
+    "4", "yes",        # delete all (fpctl asks for 'yes', setup-token.cmd asks itself)
     "q",               # quit the menu
     "n", "n",          # do not start the bridge / (Windows asks only with a helper)
 ]) + "\n"
 env = dict(os.environ, PICO_TOKEN_PORT=FakeToken(handler).serve_tcp())
-p = subprocess.run(cmd, env=env, input=answers, capture_output=True, text=True, timeout=180)
+# from a file, not a pipe: cmd's "set /p" reads a whole buffer and seeks back to the end of the line, which only works on
+# a seekable stdin; from a pipe it swallows the following answers
+with tempfile.TemporaryFile("w+") as stdin:
+    stdin.write(answers)
+    stdin.seek(0)
+    p = subprocess.run(cmd, env=env, stdin=stdin, capture_output=True, text=True, timeout=180)
 out = p.stdout + p.stderr
 print(out)
 check("token found on tcp://" in out or "Token on tcp://" in out, "setup-token finds the token")
