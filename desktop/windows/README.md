@@ -14,7 +14,7 @@ Prompt; from the repository root the paths are written as `desktop\windows\...`.
 | Serial link (COM ports), token detection, `fpctl.py` | implemented, host tests in CI |
 | Virtual FIDO device (`pico_vhf.sys` + `pico-vhid.exe`) | built and installed on the author's PC (Windows 10/11 x64, WDK 10.0.26100), the bridge creates the device `1D50:619B` and finds the token |
 | `.cmd` scripts (`build`, `install`, `uninstall`, `check-token`, `setup-token`, `start-bridge`) | used on that PC |
-| Browser registration (Edge, Chrome) | not written up here yet |
+| Browser registration | tested with the token: registration and login with PIN and fingerprint |
 
 ## Files
 

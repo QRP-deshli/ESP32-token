@@ -36,8 +36,8 @@ maintenance problem, `WindowsSerial` can be replaced by a pyserial-based `Serial
 |---|---|---|
 | `common/` | the modules above, host tests in `tests/` | host tests pass on Linux, macOS and Windows (CI) |
 | `linux/` | `setup-token.sh`, `check-token.sh`, `start-bridge.sh`, `common.sh`, udev rule | **works** (tested on Ubuntu with Brave) |
-| `mac/` | the same scripts (bash 3.2), `vhid/` virtual HID helper (Swift) | implemented, **not tested with the token**; the helper needs an Apple entitlement, see `mac/README.md` |
-| `windows/` | the same scripts (PowerShell), `vhid/` virtual HID driver + helper (prototype) | serial side implemented, **not tested with the token**; driver builds in CI, never installed, see `windows/README.md` |
+| `mac/` | the same scripts (bash 3.2), `vhid/` virtual HID helper (Swift) | **concept only**: serial side works with the token, the virtual device needs Apple's HID entitlement (paid developer account), not pursued; see `mac/README.md` |
+| `windows/` | the same scripts (`.cmd`), `vhid/` VHF driver, helper and installer | **works** (tested with the token: driver, bridge, `fpctl.py`, browser registration), see `windows/README.md` |
 | `issues/` | GitHub issues for the Windows/macOS work, plus a script that files them | |
 | `no-bridge-options.md` | comparison of ways to drop the bridge altogether | |
 
@@ -66,14 +66,14 @@ The helper scripts still stop the bridge before changing fingers; they can be si
 
 ## Helper scripts on each OS
 
-| | Linux (`linux/*.sh`) | macOS (`mac/*.sh`, bash 3.2) | Windows (`windows/*.ps1`) |
+| | Linux (`linux/*.sh`) | macOS (`mac/*.sh`, bash 3.2) | Windows (`windows/*.cmd`) |
 |---|---|---|---|
 | system preparation | `sudo`: stop ModemManager, load `uhid` | none (no sudo, no driver) | none; bridge and `fido2-token` need an administrator PowerShell |
 | virtual device check | `/dev/uhid`, udev rule | `vhid/pico-vhid --check` | `vhid\pico-vhid.exe`, `Root\PicoVhf` driver installed |
 | bridge process | `pgrep`/`pkill` | `pgrep`/`pkill` (also matches Homebrew's `Python`) | `Get-CimInstance Win32_Process` / `Stop-Process` |
 | FIDO device for `fido2-token` | `/dev/hidrawN` | `ioreg://…` | `\\?\hid#…` |
 | menu, wording, `RESET` confirmation, exit codes | reference | same | same |
-| tested | with the token | menu against a fake token (CI) | menu against a fake token (CI) |
+| tested | with the token | menu against a fake token (CI); concept only | with the token |
 
 `tests/test_scripts.py` and `tests/test_setup_scripts.py` run each OS's `check-token` and `setup-token` (enrol, test,
 delete, delete all) against a fake token in CI.
@@ -94,9 +94,10 @@ That is about 3–4 s, leaving margin for the finger touch. On macOS and Windows
 itself; earlier it asked to wait about 3 seconds and press Enter, which spent part of the window on the person. The Linux
 script still asks for Enter (unchanged, it worked in testing). None of this was timed on hardware for macOS or Windows.
 
-## Using it on macOS or Windows
+## Using it on Windows (or macOS)
 
-See `mac/README.md` and `windows/README.md`.
+See `windows/README.md`. macOS is a concept only (`mac/README.md`): without Apple's HID entitlement the bridge cannot
+create the virtual device there.
 
 ## Working on Windows or macOS support
 
