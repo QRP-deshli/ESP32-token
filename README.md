@@ -1,7 +1,9 @@
 # Pico FIDO2 on ESP32-C6 with a fingerprint gate
 
 A FIDO2 / WebAuthn security key on an **ESP32-C6** that only works after a **fingerprint** the sensor knows.
-It is a port of [pico-fido2](https://github.com/polhenarejos/pico-fido2) (see `NOTICE.md` and `CHANGES.md`).
+It is a port of pico-fido2, started from and inspired by the [LibreKeys pico-fido2](https://github.com/librekeys/pico-fido2)
+repository; some functions are taken from it. The original code is by
+[Pol Henarejos](https://github.com/polhenarejos/pico-fido2). See `NOTICE.md` and `CHANGES.md`.
 
 ```
 Browser / libfido2  --HID--  serial bridge (PC)        --USB serial--  ESP32-C6 token  --UART--  fingerprint sensor
@@ -366,6 +368,13 @@ python3 run_tests.py            # every test_*.py plus the two C tests of firmwa
 The Python tests run on Linux, macOS and Windows (a fake token on a TCP port; on Linux also a fake `/dev/uhid`).
 CI runs all of them on the three OSes: `.github/workflows/desktop.yml`. What each test covers and how to test a new
 backend without hardware: `desktop/common/tests/README.md`.
+
+## Credits
+
+- [LibreKeys pico-fido2](https://github.com/librekeys/pico-fido2): the repository this project started from, its inspiration
+  and the source of some of its functions.
+- [Pico FIDO / Pico Keys](https://github.com/polhenarejos/pico-fido2) by Pol Henarejos: author of the upstream code.
+- Everything else, with licenses: `NOTICE.md`.
 
 ## License
 
